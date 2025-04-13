@@ -1,0 +1,428 @@
+
+esphome:
+  name: "test-esp8266-wiegand"
+  friendly_name: test-8266-wiegand
+ 
+################################################################
+preferences:
+  flash_write_interval: 1sec
+################################################################
+
+#esp32:
+#  board: esp32-c3-devkitm-1
+#  framework:
+#    type: arduino
+  
+esp8266:
+  board: esp01_1m
+  restore_from_flash: true
+
+ 
+
+ 
+logger:
+  level: debug
+  logs:
+    text_sensor: error
+    number: ERROR
+    sensor: ERROR
+    ultrasonic.sensor: ERROR
+
+# Enable Home Assistant API
+api:
+
+##############################################################
+# Allow Over-The-Air updates
+ota:
+  - platform: esphome
+    password: !secret ota_password
+##############################################################
+# Allow provisioning Wi-Fi via serial
+improv_serial:
+
+wifi:
+  networks:
+    - ssid: peppe4
+    - password: !secret wifi_password4
+    - ssid: peppe2
+    - password: !secret wifi_password2
+    - ssid: peppe6
+    - password: !secret wifi_password6
+  manual_ip:
+    static_ip: 192.168.1.111
+    gateway: 192.168.1.1
+    subnet: 255.255.255.0
+    dns1: 192.168.1.1
+
+  ap:
+    {}
+
+captive_portal:
+ 
+#########################################################################
+web_server:
+  version: 3
+#########################################################################
+
+#########################################################################
+text_sensor:
+  - platform: wifi_info
+    ssid:
+      name: "wifi connesso a:"
+      web_server:
+        sorting_weight: 7
+      
+  - platform: template
+    name: "Uptime:"
+    lambda: |-
+      int seconds = (id(uptimex).state);
+      String days = String(seconds / (24 * 3600));
+      //if (days.length() == 1)
+      //{
+      //days="0" + days;
+      //}
+      seconds = seconds % (24 * 3600); 
+      String hours = String(seconds / 3600);
+      if (hours.length() == 1)
+      {
+      hours="0" + hours;
+      }
+      seconds = seconds % 3600;
+      String minutes = String(seconds /  60);
+      if (minutes.length() == 1)
+      {
+      minutes="0" + minutes;
+      }
+      String second = String(seconds % 60);
+      if (second.length() == 1)
+      {
+      second="0" + second;
+      }
+      return { (days +" g; " + hours +" h " + minutes +" m e "+ second +" s").c_str() };
+      //return { (String(days) +"g " + String(hours) +"h:" + String(minutes) +"m:"+ String(seconds) +"s").c_str() };
+ 
+    icon: mdi:clock-start
+    update_interval: 5s
+
+  - platform: template
+    name: "Tag scansiti"
+    id: homeassistant_tag_scanned
+
+  - platform: template
+    name: "Codici Tastiera"
+    id: keypad_codes_sensor
+    lambda: |-
+      std::string result;
+      for (const auto& code : id(keypad_code_history)) {
+          result += code + ", \n";
+      }
+      if (!result.empty()) {
+          result.pop_back();
+          result.pop_back();
+      }
+      return { result.c_str() };
+    update_interval: 5s
+    icon: mdi:form-textbox-password
+
+#########################################################################
+sensor:
+  - platform: wifi_signal
+    name: "Segnale WiFi"
+    web_server:
+      sorting_weight: 8
+    update_interval: 10s
+
+  - platform: uptime
+    name: "Uptime"
+    internal: true
+    id: uptimex
+    update_interval: 5s
+# Usa un output GPIO con id "led_builtin"
+
+globals:
+
+  - id: codice_valido
+    type: bool
+    initial_value: 'false'  # Inizialmente il codice non è valido
+
+  - id: keypad_code_history
+    type: std::vector<std::string>
+    initial_value: ""
+
+  - id: last_formatted_code
+    type: std::string
+    initial_value: ""
+
+  - id: authorized_keypad_codes
+    type: std::vector<std::string>
+    initial_value: '{"19751983"}'
+
+
+  - id: authorized_tags_1
+    type: std::vector<uint64_t>  # Ora il tipo è corretto
+                    #utente1      #utente2   #utente3
+    initial_value: '{501111111, 854000000, 851434343}'  # I badge devono essere numeri
+  
+  - id: authorized_fingerprint
+    type: std::vector<uint64_t>  # Ora il tipo è corretto
+    initial_value: '{222222222, 6666666666}'  # I badge devono essere numeri
+  
+  - id: authorized_tags_3
+    type: std::vector<uint64_t>  # Ora il tipo è corretto
+    initial_value: '{8888888888, 0000000000}'  # I badge devono essere numeri
+ 
+  - id: last_tag
+    type: uint64_t
+    restore_value: True
+    initial_value: '0'  # L'ultimo tag letto sarà un numero
+  
+  - id: tag_history
+    type: std::vector<std::string>
+    initial_value: ""
+
+
+output:
+  - platform: gpio
+    pin:
+      number: GPIO2
+      inverted: true
+    id: led_builtin  # ID dell'output come richiesto
+
+switch:
+
+
+  - platform: gpio
+    id: relay1
+    pin: 
+      number: GPIO4
+      inverted: true
+      mode: 
+        output: True
+        open_drain: True
+    restore_mode: ALWAYS_OFF
+    name: "Apri Portone"
+    on_turn_on:
+      - delay: 1000ms
+      - switch.turn_off: relay1  # Spegne il relè dopo 1000ms
+
+  - platform: gpio
+    id: relay2
+    pin: 
+      number: GPIO5
+      inverted: true
+      mode: 
+        output: True
+        open_drain: True
+    restore_mode: ALWAYS_OFF
+    name: "Apri Cancello"
+    on_turn_on:
+      - delay: 1000ms
+      - switch.turn_off: relay2  # Spegne il relè dopo 1000ms
+
+
+  - platform: template
+    id: tag_scan_enabled
+    name: "Abilita Tastiera"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+
+
+  - platform: template
+    id: clear_history_button
+    name: "Cancella Storico"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - lambda: |-
+          id(tag_history).clear();
+          id(keypad_code_history).clear();
+          id(homeassistant_tag_scanned).publish_state("Storico cancellato");
+          id(keypad_codes_sensor).publish_state("Storico tastiera cancellato");
+      - delay: 500ms
+      - switch.turn_off: clear_history_button
+
+# Example configuration entry
+key_collector:
+  - id: pincode_reader
+    source_id: mykeypad
+    min_length: 6
+    max_length: 9
+    end_keys: "#"
+    end_key_required: true
+    #back_keys: "*"
+    clear_keys: "*" # "C"
+    allowed_keys: "0123456789"
+    timeout: 5s
+    on_result:   
+      - if:
+          condition:
+            switch.is_on: tag_scan_enabled
+          then:
+
+            - lambda: |-
+                id(keypad_code_history).push_back(x);
+                if (id(keypad_code_history).size() > 24) {
+                  id(keypad_code_history).erase(id(keypad_code_history).begin());  // Mantiene solo gli ultimi 24 codici
+                }
+
+                std::string tags_concatenati;
+
+                for (const auto& tag : id(keypad_code_history)) {
+                 // Aggiungi direttamente il tag alla lista con virgola e newline
+                 tags_concatenati += tag + ", \n";
+                }
+                if (!tags_concatenati.empty()) {
+                  tags_concatenati.pop_back();  // Rimuove l'ultima virgola
+                  tags_concatenati.pop_back();  // Rimuove l'ultimo spazio
+                }
+
+                id(keypad_codes_sensor).publish_state(tags_concatenati);
+
+
+            - lambda: |-
+                std::string code = x;
+
+                id(last_formatted_code) = code;
+
+                // Verifica se il codice è tra quelli autorizzati
+                bool codice_validox = false;
+                for (const auto& c : id(authorized_keypad_codes)) {
+                    if (c == code) {
+                        codice_validox = true;
+                        break;
+                    }
+                }
+
+                if (codice_validox) {
+                    id(codice_valido)=true;
+
+                } else {
+                    id(codice_valido)=false;
+                }
+ 
+            - homeassistant.tag_scanned: !lambda 'return id(last_formatted_code);'
+            - if:
+                condition:
+                    lambda: 'return id(codice_valido);'  # Se il codice è valido
+                then:
+                    - lambda: |-
+                        ESP_LOGI("TAG", "Tastiera ABILITATA");
+                        ESP_LOGI("TAG", "%s Codice ABILITATO", id(last_formatted_code).c_str());
+                    - script.execute: accensione_relay1  # Accendi il primo relay
+                    - delay: 2000ms
+                    - script.execute: accensione_relay2  # Accendi il secondo relay
+                    
+                else:
+                    - lambda: |-
+                        ESP_LOGI("TAG", "Tastiera ABILITATA");
+                        ESP_LOGI("TAG", " %s Codice non ABILITATO", id(last_formatted_code).c_str());
+          else:
+            - lambda: |-
+                ESP_LOGI("TAG", "Tastiera DISABILITATA");
+    #on_raw:
+wiegand:
+  - id: mykeypad
+    d0: GPIO13
+    d1: GPIO12
+
+    #on_key:
+      #- lambda: |-
+      #    ESP_LOGI("KEY", "received key %d", x);
+    on_tag:
+       
+      - if:
+          condition:
+            switch.is_on: tag_scan_enabled
+          then:
+            - lambda: |-
+                id(tag_history).push_back(x);
+                if (id(tag_history).size() > 24) {
+                  id(tag_history).erase(id(tag_history).begin());  // Mantiene solo gli ultimi 24 tag
+                }
+
+                std::string tags_concatenati;
+
+                for (const auto& tag : id(tag_history)) {
+                 // Aggiungi direttamente il tag alla lista con virgola e newline
+                 tags_concatenati += tag + ", \n";
+                }
+                if (!tags_concatenati.empty()) {
+                  tags_concatenati.pop_back();  // Rimuove l'ultima virgola
+                  tags_concatenati.pop_back();  // Rimuove l'ultimo spazio
+                }
+
+                id(homeassistant_tag_scanned).publish_state(tags_concatenati);
+
+
+
+            - lambda: |-
+                ESP_LOGI("TAG", "Tastiera ABILITATA");
+                uint64_t received_tag = std::stoull(x.c_str());  // Usa stoull per convertire la stringa in uint64_t
+                bool access_granted = false;
+
+                //////////////////////////////////////////////////////////////////////////////////////
+
+                // Controlla se il tag è nella LISTA 1 → LED 1
+                for (const auto& tag : id(authorized_tags_1)) {
+                  if (tag == received_tag) {
+                    //ESP_LOGI("ACCESSO", "Badge valido!");
+                    ESP_LOGI("ACCESSO", "%s Badge VALIDO:", x.c_str());
+                    id(accensione_relay12).execute();
+                    access_granted = true;  // Accesso concesso
+                    break;
+                  }
+                }
+
+                // Controlla se il tag è nella LISTA 2 → LED 2
+                for (const auto& tag : id(authorized_fingerprint)) {
+                  if (tag == received_tag) {
+                    ESP_LOGI("ACCESSO", "Impronta valida!");
+                    id(accensione_relay12).execute();
+                    access_granted = true;  // Accesso concesso
+                    break;
+                  }
+                }
+
+                // Controlla se il tag è nella LISTA 3 → LED 3
+                for (const auto& tag : id(authorized_tags_3)) {
+                  if (tag == received_tag) {
+                    ESP_LOGI("ACCESSO", "Badge valido per Funzione 3!");
+                    id(led_builtin).turn_on();  // Accendi LED 2
+                    delay(100);  // LED acceso per 5 secondi
+                    id(led_builtin).turn_off();  // Spegni il LED
+                    access_granted = true;  // Accesso concesso
+                    break;
+                  }
+                }
+
+
+
+                // Se il tag non è in nessuna lista
+                if (!access_granted) {
+                  ESP_LOGI("ACCESSO", "%s Badge non AUTORIZZATO:", x.c_str());
+                }
+            - homeassistant.tag_scanned: !lambda 'return x.c_str();'
+          else:
+            - lambda: |-
+                ESP_LOGI("TAG", "Tastiera DISABILITATA");
+    #on_raw:
+      #- lambda: |-
+      #    ESP_LOGI("RAW", "Badge ricevuto: %u", value);
+
+
+script:
+  - id: accensione_relay12
+    then:
+      - switch.turn_on: relay1
+      - delay: 2000ms
+      - switch.turn_on: relay2
+
+  - id: accensione_relay1
+    then:
+      - switch.turn_on: relay1
+
+
+  - id: accensione_relay2
+    then:
+      - switch.turn_on: relay2
+     
