@@ -155,7 +155,7 @@ globals:
 
   - id: authorized_keypad_codes
     type: std::vector<std::string>
-    initial_value: '{"19751983"}'
+    initial_value: '{"19755791"}'
 
 
   - id: authorized_tags_1
