@@ -1,0 +1,31 @@
+alias: notifica telegram su password e tag errato
+description: Invia notifica Telegram per codice o tag non autorizzato
+triggers:
+  - entity_id:
+      - sensor.apriporte_wiegand_ultima_password_non_valida
+    trigger: state
+    from:
+      - unknown
+      - unavailable
+  - entity_id:
+      - sensor.apriporte_wiegand_ultimo_tag_o_impronta_non_valido
+    trigger: state
+    from:
+      - unknown
+      - unavailable
+conditions: []
+actions:
+  - data:
+      title: 🔐 Accesso negato!
+      message: >-
+        {% if trigger.entity_id ==
+        'sensor.apriporte_wiegand_ultima_password_non_valida' %}
+          ❌ Password non valida: {{ states('sensor.apriporte_wiegand_ultima_password_non_valida') }}
+        {% elif trigger.entity_id ==
+        'sensor.apriporte_wiegand_ultimo_tag_o_impronta_non_valido' %}
+          ❌ Badge/impronta non valido: {{ states('sensor.apriporte_wiegand_ultimo_tag_o_impronta_non_valido') }}
+        {% else %}
+          ⚠️ Tentativo di accesso negato.
+        {% endif %}
+    action: notify.telegram
+mode: single
