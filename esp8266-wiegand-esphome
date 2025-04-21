@@ -1,4 +1,3 @@
-
 esphome:
   name: "apriporte-wiegand"
   friendly_name: apriporte-wiegand
@@ -195,6 +194,20 @@ text_sensor:
     icon: mdi:account-off
 
 
+
+  - platform: template
+    name: "Ultima Password non valida"
+    id: last_unauthorized_keypad_code_sensor
+    update_interval: never
+    web_server:
+      sorting_weight: 50
+
+  - platform: template
+    name: "Ultimo TAG o Impronta non valido"
+    id: last_unauthorized_tag_code_sensor
+    update_interval: never
+    web_server:
+      sorting_weight: 51
 #########################################################################
 sensor:
   - platform: wifi_signal
@@ -209,6 +222,8 @@ sensor:
     id: uptimex
     update_interval: 5s
 # Usa un output GPIO con id "led_builtin"
+ 
+
 
 globals:
 
@@ -258,15 +273,16 @@ globals:
   - id: authorized_keypad_codes_2
     type: std::vector<std::string>
     initial_value: '{"0"}'
+
   - id: authorized_fingerprint
     type: std::vector<uint64_t>  # Ora il tipo è corretto
-                   
-    initial_value: '{0212121212,12233222,22222222}' 
+                     #impronte mie                            #impronte 1                       #impronte 2
+    initial_value: '{111111,222222,444444,555555, 666666,777777,888888,999999}' 
   
   - id: authorized_tags_12
     type: std::vector<uint64_t>  # Ora il tipo è corretto
-                    #utente1     #utente2  #utente3 #Tessera X
-    initial_value: '{111111111, 222222222, 444444444,333333333}'  # I badge devono essere numeri
+                    #M1      #2   #3 #Tessera xxx
+    initial_value: '{121212121, 34343434, 4545455,56565656}'  # I badge devono essere numeri
 
   - id: authorized_tags_1
     type: std::vector<uint64_t>  # Ora il tipo è corretto
@@ -387,7 +403,7 @@ switch:
     id: clear_history_button
     name: "Cancella Storico"
     web_server:
-      sorting_weight: 5
+      sorting_weight: 11
     icon: mdi:history
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
@@ -399,7 +415,9 @@ switch:
           id(fingerprint_history).clear();
           id(keypad_code_history).clear();
           id(homeassistant_tag_scanned).publish_state("Storico cancellato");
-         
+          id(last_unauthorized_keypad_code_sensor).publish_state("unknown");
+          id(last_unauthorized_tag_code_sensor).publish_state("unknown");
+          
       - delay: 500ms
       - switch.turn_off: clear_history_button
 
@@ -420,8 +438,6 @@ key_collector:
             switch.is_on: tag_scan_enabled
           then:
             - lambda: |-
-                
-                
 
                 std::string code = x;
                 id(last_formatted_code) = code;
@@ -432,9 +448,9 @@ key_collector:
                 for (const auto& c : id(authorized_keypad_codes_12)) {
                     if (c == code) {
                         codice_validox = true;
-                        ESP_LOGI("ACCESSO", "Codice VALIDATO: %s", code.c_str());
+                        ESP_LOGI("ACCESSO", "%s Password VALIDA (relay 12)", code.c_str());
                         id(accensione_relay12)->execute();
-                      break;
+                        break;
                     }
                 }
                 // tastiera1
@@ -442,7 +458,7 @@ key_collector:
                     for (const auto& c : id(authorized_keypad_codes_1)) {
                         if (c == code) {
                             codice_validox = true;
-                            ESP_LOGI("ACCESSO", "Codice VALIDATO: %s", code.c_str());
+                            ESP_LOGI("ACCESSO", "%s Password VALIDA (relay 1)", code.c_str());
                             id(accensione_relay1)->execute();
                             break;
                         }
@@ -453,7 +469,7 @@ key_collector:
                     for (const auto& c : id(authorized_keypad_codes_2)) {
                         if (c == code) {
                             codice_validox = true;
-                            ESP_LOGI("ACCESSO", "Codice VALIDATO: %s", code.c_str());
+                            ESP_LOGI("ACCESSO", "%s Password VALIDA (relay 2)", code.c_str());
                             id(accensione_relay2)->execute();
                             break;
                         }
@@ -479,8 +495,8 @@ key_collector:
                 }
                 // Codice non autorizzato
                 if (!codice_validox) {
-                    ESP_LOGI("ACCESSO", "Codice NON autorizzato: %s", code.c_str());
-                    
+                    ESP_LOGW("ACCESSO", "%s Password NON valida", code.c_str());
+
                     // Aggiungi alla lista di password non autorizzate
                     id(unauthorized_keypad_codes).push_back(code);
                     if (id(unauthorized_keypad_codes).size() > 24) {
@@ -497,8 +513,12 @@ key_collector:
                     }
 
                     id(unauthorized_keypad_codes_sensor)->publish_state(unauthorized_codes_concatenati);
+                    // 🔔 Pubblica anche l'ultimo codice non autorizzato in un sensore separato
+                    id(last_unauthorized_keypad_code_sensor).publish_state("unknown");
+                    id(last_unauthorized_keypad_code_sensor).publish_state(code);
+                     
                 }
-                
+
             - homeassistant.tag_scanned: !lambda 'return id(last_formatted_code);'
 
                 
@@ -525,7 +545,7 @@ wiegand:
                 // === IMPRONTA ===
                 for (const auto& tag : id(authorized_fingerprint)) {
                     if (tag == received_tag) {
-                        ESP_LOGI("ACCESSO", "Impronta valida!");
+                        ESP_LOGI("ACCESSO", "%s Impronta VALIDa", x.c_str());
                         id(accensione_relay12)->execute();
                         access_granted = true;
                         is_fingerprint = true;
@@ -554,7 +574,7 @@ wiegand:
                 if (!access_granted && !is_fingerprint) {
                     for (const auto& tag : id(authorized_tags_12)) {
                         if (tag == received_tag) {
-                            ESP_LOGI("ACCESSO", "Badge 12 VALIDO: %s", x.c_str());
+                            ESP_LOGI("ACCESSO", "%s Badge 12 VALIDO!", x.c_str());
                             id(accensione_relay12)->execute();
                             access_granted = true;
 
@@ -582,7 +602,7 @@ wiegand:
                 if (!access_granted && !is_fingerprint) {
                     for (const auto& tag : id(authorized_tags_1)) {
                         if (tag == received_tag) {
-                            ESP_LOGI("ACCESSO", "Badge 1 VALIDO: %s", x.c_str());
+                            ESP_LOGI("ACCESSO", "%s Badge 1 VALIDO!", x.c_str());
                             id(accensione_relay1)->execute();
                             access_granted = true;
 
@@ -610,7 +630,7 @@ wiegand:
                 if (!access_granted && !is_fingerprint) {
                     for (const auto& tag : id(authorized_tags_2)) {
                         if (tag == received_tag) {
-                            ESP_LOGI("ACCESSO", "Badge 2 VALIDO: %s", x.c_str());
+                            ESP_LOGI("ACCESSO", "%s Badge 2 VALIDO!", x.c_str());
                             id(accensione_relay2)->execute();
                             access_granted = true;
 
@@ -636,7 +656,7 @@ wiegand:
 
                 // === NESSUN ACCESSO ===
                 if (!access_granted && !is_fingerprint) {
-                    ESP_LOGI("ACCESSO", "Badge o Impronta NON autorizzato: %s", x.c_str());
+                    ESP_LOGI("ACCESSO", "s% Badge o Impronta NON autorizzato!", x.c_str());
 
                     id(unauthorized_tags).push_back(x);
                     if (id(unauthorized_tags).size() > 24) {
@@ -653,6 +673,10 @@ wiegand:
                     }
 
                     id(unauthorized_tags_sensor)->publish_state(unauthorized_tags_concatenati);
+                    // 🔔 Pubblica anche l'ultimo tag o impronta non autorizzato in un sensore separato
+                    id(last_unauthorized_tag_code_sensor).publish_state("unknown");
+                    id(last_unauthorized_tag_code_sensor).publish_state(x.c_str());
+                   
                 }
 
             - homeassistant.tag_scanned: !lambda 'return x.c_str();'
