@@ -438,79 +438,80 @@ key_collector:
     timeout: 5s
     on_result:
       then:
-        - if:
-            condition:
-              switch.is_on: 
-                id: tag_scan_enabled
-            then:
-              - lambda: |-
-                  std::string code = x;
-                  id(last_formatted_code) = code;
-                  std::string user_name = "Unknown";
-                  bool codice_valido = false;
+        - lambda: |-
+            std::string code = x;
+            id(last_formatted_code) = code;
+            std::string user_name = "Unknown";
+            bool codice_valido = false;
+            int relay = 0;
 
-                  //////////////////////////////////////////////////////////////////
-                  // Mappa dei codici validi e relativa azione (relay)
-                  std::map<std::string, std::pair<std::string, int>> codici_validi = {
-                    {"1111110000", {"Pwd GLOBALE", 12}}, //entramni  i relay
-                    {"123456789", {"Pwd CANCELLO", 1}},  //solo relay porta
-                    {"00000000", {"Pwd PORTONE", 2}}     //solo relay cancello
-                  };
-                  //////////////////////////////////////////////////////////////////
+            //////////////////////////////////////////////////////////////////
+            // Mappa dei codici validi e relativa azione (relay)
+            std::map<std::string, std::pair<std::string, int>> codici_validi = {
+              {"12341234", {"Pwd GLOBALE",  12}}, //tutti e due i relay
+              {"12312412", {"Pwd CANCELLO",  1}}, //relay 1
+              {"19876543", {"Pwd PORTONE",   2}}  //relay 2
+            };
+            //////////////////////////////////////////////////////////////////
 
-                  auto it = codici_validi.find(code);
-                  if (it != codici_validi.end()) {
-                    codice_valido = true;
-                    user_name = it->second.first;
-                    int relay = it->second.second;
+            auto it = codici_validi.find(code);
+            if (it != codici_validi.end()) {
+              codice_valido = true;
+              user_name = it->second.first;
+              relay = it->second.second;
 
-                    ESP_LOGI("ACCESSO", "%s Password VALIDA", code.c_str());
+              ESP_LOGI("ACCESSO", "Password VALIDA: %s", user_name.c_str());
 
-                    if (relay == 1) id(accensione_relay1)->execute();
-                    else if (relay == 2) id(accensione_relay2)->execute();
-                    else if (relay == 12) id(accensione_relay12)->execute();
+              id(keypad_code_history).push_back(user_name);
+              if (id(keypad_code_history).size() > 24) {
+                id(keypad_code_history).erase(id(keypad_code_history).begin());
+              }
 
-                    id(keypad_code_history).push_back(user_name);
-                    if (id(keypad_code_history).size() > 24) {
-                      id(keypad_code_history).erase(id(keypad_code_history).begin());
-                    }
+              std::string codes_concatenati;
+              for (const auto& valid_code : id(keypad_code_history)) {
+                codes_concatenati += valid_code + ", \n";
+              }
+              if (!codes_concatenati.empty()) {
+                codes_concatenati.erase(codes_concatenati.size() - 3);
+              }
 
-                    std::string codes_concatenati;
-                    for (const auto& valid_code : id(keypad_code_history)) {
-                      codes_concatenati += valid_code + ", \n";
-                    }
-                    if (!codes_concatenati.empty()) {
-                      codes_concatenati.erase(codes_concatenati.size() - 3);
-                    }
+              id(keypad_codes_sensor)->publish_state(codes_concatenati);
+              id(user_name_sensor)->publish_state(user_name);
+            } else {
+              codice_valido = false;
+              ESP_LOGW("ACCESSO", "Password NON valida: %s", code.c_str());
+              user_name = x.c_str();
+              id(user_name_sensor)->publish_state(user_name);
+              id(unauthorized_keypad_codes).push_back(code);
+              if (id(unauthorized_keypad_codes).size() > 24) {
+                id(unauthorized_keypad_codes).erase(id(unauthorized_keypad_codes).begin());
+              }
 
-                    id(keypad_codes_sensor)->publish_state(codes_concatenati);
-                    id(user_name_sensor).publish_state(user_name);
-                  } else {
-                    ESP_LOGW("ACCESSO", "%s Password NON valida", code.c_str());
-                    id(user_name_sensor).publish_state(x.c_str());
-                    id(unauthorized_keypad_codes).push_back(code);
-                    if (id(unauthorized_keypad_codes).size() > 24) {
-                      id(unauthorized_keypad_codes).erase(id(unauthorized_keypad_codes).begin());
-                    }
+              std::string unauthorized_codes_concatenati;
+              for (const auto& invalid_code : id(unauthorized_keypad_codes)) {
+                unauthorized_codes_concatenati += invalid_code + ", \n";
+              }
+              if (!unauthorized_codes_concatenati.empty()) {
+                unauthorized_codes_concatenati.erase(unauthorized_codes_concatenati.size() - 3);
+              }
 
-                    std::string unauthorized_codes_concatenati;
-                    for (const auto& invalid_code : id(unauthorized_keypad_codes)) {
-                      unauthorized_codes_concatenati += invalid_code + ", \n";
-                    }
-                    if (!unauthorized_codes_concatenati.empty()) {
-                      unauthorized_codes_concatenati.erase(unauthorized_codes_concatenati.size() - 3);
-                    }
+              id(unauthorized_keypad_codes_sensor)->publish_state(unauthorized_codes_concatenati);
+              id(last_unauthorized_keypad_code_sensor)->publish_state(code);
+            }
 
-                    id(unauthorized_keypad_codes_sensor)->publish_state(unauthorized_codes_concatenati);
-                    id(last_unauthorized_keypad_code_sensor)->publish_state(code);
-                  }
-              - homeassistant.tag_scanned: !lambda 'return id(user_name_sensor).state.c_str();'
+            // Attiva i relay SOLO se la tastiera è abilitata
+            if (id(tag_scan_enabled).state) {
+              if (codice_valido) {
+                if (relay == 1) id(accensione_relay1)->execute();
+                else if (relay == 2) id(accensione_relay2)->execute();
+                else if (relay == 12) id(accensione_relay12)->execute();
+              }
+            } else {
+              ESP_LOGI("TAG", "Tastiera DISABILITATA");
+            }
+        - homeassistant.tag_scanned: !lambda 'return id(user_name_sensor).state.c_str();'
 
-              #- homeassistant.tag_scanned: !lambda 'return x.c_str();'
-
-            else:
-              - lambda: |-
-                  ESP_LOGI("TAG", "Tastiera DISABILITATA");
+                
                 
 #on_raw:
 wiegand:
@@ -518,113 +519,109 @@ wiegand:
     d0: GPIO13
     d1: GPIO12
     on_tag:
-      - if:
-          condition:
-            switch.is_on: tag_scan_enabled
-          then:
-            - lambda: |-
-                uint64_t tag = std::stoull(x.c_str());
-                std::string name = "Unknown";
+      - lambda: |-
+          uint64_t tag = std::stoull(x.c_str());
+          std::string name = "Unknown";
 
+          // === Mappe impronte ===
+          std::map<uint64_t, std::pair<std::string, int>> impronte = {
+            {111111111, {"Imp 1", 12}},
+            {222222222, {"Imp 2", 12}},
+            {444444444, {"Imp 3", 12}},
+            {333333333, {"Imp 4", 12}},
+            {666666666, {"Imp 5", 12}},
+            {555555555, {"Imp 6", 12}},
+            {777777777, {"Imp 7", 12}},
+            {888888888, {"Imp 8", 12}}
+          };
 
-                //////////////////////////////////////////////////////////////////
-                // === Mappe impronte e relativi relays ===
-                std::map<uint64_t, std::pair<std::string, int>> impronte = {
-                  {123123123, {"Imp utente11", 12}},   //tutti i relay
-                  {111111111, {"Imp utente12", 12}},   //tutti i relay
-                  {222222222, {"Imp utente13", 12}},   //tutti i relay
-                  {333333333, {"Imp utente14", 12}},   //tutti i relay
-                  {456456456, {"Imp utente21", 12}},   //tutti i relay
-                  {444444444, {"Imp utente22", 12}},   //tutti i relay
-                  {555555555, {"Imp utente23", 12}},   //tutti i relay
-                  {666666666, {"Imp utente24", 12}}    //tutti i relay
-                };
-                //////////////////////////////////////////////////////////////////
+          // === Mappe badge ===
+          std::map<uint64_t, std::pair<std::string, int>> badge = {
+            {112233445,  {"Badge 1", 12}},
+            {554433221,  {"Badge 2", 12}},
+            {123454332,  {"Badge 3", 12}},
+            {654312345, {"Badge ATe",12}}
+          };
 
+          bool autorizzato = false;
+          int relay = 0;
 
-                //////////////////////////////////////////////////////////////////
-                // === Mappe Badges e relativi relays ===
-                std::map<uint64_t, std::pair<std::string, int>> badge = {
-                  {777777777,    {"Badge utente1",   12}},   //tutti i relay
-                  {123412342,    {"Badge utente2",   12}},   //tutti i relay 
-                  {432314321,    {"Badge utente3",   12}},   //tutti i relay
-                  {2342365665,   {"Tessera utente4", 12}}    //tutti i relay
-                };
-                //////////////////////////////////////////////////////////////////
+          // Verifica impronta
+          if (impronte.count(tag)) {
+            name = impronte[tag].first;
+            relay = impronte[tag].second;
+            autorizzato = true;
+            ESP_LOGI("ACCESSO", "Impronta riconosciuta: %s", name.c_str());
 
+            id(fingerprint_history).push_back(name);
+            if (id(fingerprint_history).size() > 24) {
+              id(fingerprint_history).erase(id(fingerprint_history).begin());
+            }
 
-                // === Verifica impronta ===
-                if (impronte.count(tag)) {
-                  name = impronte[tag].first;
-                  ESP_LOGI("ACCESSO", "Impronta riconosciuta: %s", name.c_str());
-                  int relay = impronte[tag].second;
-                  if (relay == 1) id(accensione_relay1)->execute();
-                  else if (relay == 2) id(accensione_relay2)->execute();
-                  else id(accensione_relay12)->execute();  // Default
+            std::string history;
+            for (const auto& n : id(fingerprint_history)) {
+              history += n + ", \n";
+            }
+            if (!history.empty()) history.erase(history.size() - 3);
+            id(fingerprint_scanned_sensor)->publish_state(history);
+          }
 
-                  id(fingerprint_history).push_back(name);
-                  if (id(fingerprint_history).size() > 24) {
-                    id(fingerprint_history).erase(id(fingerprint_history).begin());
-                  }
+          // Verifica badge
+          else if (badge.count(tag)) {
+            name = badge[tag].first;
+            relay = badge[tag].second;
+            autorizzato = true;
+            ESP_LOGI("ACCESSO", "Badge riconosciuto: %s", name.c_str());
 
-                  std::string history;
-                  for (const auto& n : id(fingerprint_history)) {
-                    history += n + ", \n";
-                  }
-                  if (!history.empty()) history.erase(history.size() - 3);
+            id(tag_history).push_back(name);
+            if (id(tag_history).size() > 24) {
+              id(tag_history).erase(id(tag_history).begin());
+            }
 
-                  id(fingerprint_scanned_sensor)->publish_state(history);
-                }
+            std::string tag_history_str;
+            for (const auto& n : id(tag_history)) {
+              tag_history_str += n + ", \n";
+            }
+            if (!tag_history_str.empty()) tag_history_str.erase(tag_history_str.size() - 3);
+            id(homeassistant_tag_scanned)->publish_state(tag_history_str);
+          }
 
-                // === Verifica badge ===
-                else if (badge.count(tag)) {
-                  name = badge[tag].first;
-                  ESP_LOGI("ACCESSO", "Badge riconosciuto: %s", name.c_str());
-                  int relay = badge[tag].second;
-                  if (relay == 1) id(accensione_relay1)->execute();
-                  else if (relay == 2) id(accensione_relay2)->execute();
-                  else id(accensione_relay12)->execute();  // Default
+          // Non autorizzato
+          else {
+            autorizzato = false;
+            ESP_LOGI("ACCESSO", "Tag o impronta NON autorizzato!");
+            name = x.c_str();
+            id(unauthorized_tags).push_back(x);
+            if (id(unauthorized_tags).size() > 24) {
+              id(unauthorized_tags).erase(id(unauthorized_tags).begin());
+            }
 
-                  id(tag_history).push_back(name);
-                  if (id(tag_history).size() > 24) {
-                    id(tag_history).erase(id(tag_history).begin());
-                  }
+            std::string unauthorized_tags_str;
+            for (const auto& tag_str : id(unauthorized_tags)) {
+              unauthorized_tags_str += tag_str + ", \n";
+            }
+            if (!unauthorized_tags_str.empty()) unauthorized_tags_str.erase(unauthorized_tags_str.size() - 3);
 
-                  std::string tag_history_str;
-                  for (const auto& n : id(tag_history)) {
-                    tag_history_str += n + ", \n";
-                  }
-                  if (!tag_history_str.empty()) tag_history_str.erase(tag_history_str.size() - 3);
+            id(unauthorized_tags_sensor)->publish_state(unauthorized_tags_str);
+            id(last_unauthorized_tag_code_sensor).publish_state(x.c_str());
+          }
 
-                  id(homeassistant_tag_scanned)->publish_state(tag_history_str);
-                }
+          // Aggiorna variabile globale con il nome identificato
+          id(tag_name).publish_state(name);
 
-                // === Tag non autorizzato ===
-                else {
-                  ESP_LOGI("ACCESSO", "Tag o impronta NON autorizzato!");
-                  name = x.c_str();
-                  id(unauthorized_tags).push_back(x);
-                  if (id(unauthorized_tags).size() > 24) {
-                    id(unauthorized_tags).erase(id(unauthorized_tags).begin());
-                  }
+          // === Attiva relè SOLO se tastiera abilitata ===
 
-                  std::string unauthorized_tags_str;
-                  for (const auto& tag_str : id(unauthorized_tags)) {
-                    unauthorized_tags_str += tag_str + ", \n";
-                  }
-                  if (!unauthorized_tags_str.empty()) unauthorized_tags_str.erase(unauthorized_tags_str.size() - 3);
+          if (id(tag_scan_enabled).state) {
+            if (autorizzato) {
+              if (relay == 1) id(accensione_relay1)->execute();
+              else if (relay == 2) id(accensione_relay2)->execute();
+              else if (relay == 12) id(accensione_relay12)->execute();
+            }
+          } else {
+            ESP_LOGI("TAG", "Tastiera DISABILITATA");
+          }
+      - homeassistant.tag_scanned: !lambda 'return id(tag_name).state.c_str();'
 
-                  id(unauthorized_tags_sensor)->publish_state(unauthorized_tags_str);
-                  id(last_unauthorized_tag_code_sensor).publish_state(x.c_str());
-                }
-
-                // Aggiorna la variabile globale con il valore di name
-                id(tag_name).publish_state(name);
-            - homeassistant.tag_scanned: !lambda 'return id(tag_name).state.c_str();'
-            #- homeassistant.tag_scanned: !lambda 'return x.c_str();'
-          else:
-            - lambda: |-
-                ESP_LOGI("TAG", "Tastiera DISABILITATA");
 
 script:
   - id: accensione_relay12
