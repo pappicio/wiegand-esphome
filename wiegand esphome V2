@@ -419,8 +419,8 @@ switch:
           id(fingerprint_history).clear();
           id(keypad_code_history).clear();
           id(homeassistant_tag_scanned).publish_state("Storico cancellato");
-          id(last_unauthorized_keypad_code_sensor).publish_state("unknown");
-          id(last_unauthorized_tag_code_sensor).publish_state("unknown");
+          id(last_unauthorized_keypad_code_sensor).publish_state("");
+          id(last_unauthorized_tag_code_sensor).publish_state("");
           
       - delay: 500ms
       - switch.turn_off: clear_history_button
@@ -449,12 +449,14 @@ key_collector:
                   std::string user_name = "Unknown";
                   bool codice_valido = false;
 
+                  //////////////////////////////////////////////////////////////////
                   // Mappa dei codici validi e relativa azione (relay)
                   std::map<std::string, std::pair<std::string, int>> codici_validi = {
-                    {"111111111", {"P GLOBALE", 12}}, //tutti e 2 i relay
-                    {"222222222", {"P CANCELLO", 1}}, //relay 1
-                    {"333333333", {"P PORTONE", 2}}   //relay 2
+                    {"1111110000", {"Pwd GLOBALE", 12}}, //entramni  i relay
+                    {"123456789", {"Pwd CANCELLO", 1}},  //solo relay porta
+                    {"00000000", {"Pwd PORTONE", 2}}     //solo relay cancello
                   };
+                  //////////////////////////////////////////////////////////////////
 
                   auto it = codici_validi.find(code);
                   if (it != codici_validi.end()) {
@@ -524,24 +526,32 @@ wiegand:
                 uint64_t tag = std::stoull(x.c_str());
                 std::string name = "Unknown";
 
-                // === Mappe codici ===
-                std::map<uint64_t, std::pair<std::string, int>> impronte = {
-                  {12121212, {"I utente11", 12}},   //tutti i relay
-                  {21212121, {"I utente12", 12}},   //tutti i relay
-                  {23232323, {"I utente13", 12}},   //tutti i relay
-                  {32323232, {"I utente34", 12}},   //tutti i relay
-                  {43434343, {"I utente22", 12}},       //tutti i relay
-                  {34343434, {"I utente23", 12}},       //tutti i relay
-                  {45454545, {"I utente24", 12}},       //tutti i relay
-                  {54545454, {"I utente25", 12}}        //tutti i relay
-                };
 
-                std::map<uint64_t, std::pair<std::string, int>> badge = {
-                  {67676767,    {"B utente1",     12}},   //tutti i relay
-                  {76767676,    {"B utente2",   12}},   //tutti i relay 
-                  {87878787,    {"B utente3",  12}},   //tutti i relay
-                  {78787878,   {"tessera mia",   12}}    //tutti i relay
+                //////////////////////////////////////////////////////////////////
+                // === Mappe impronte e relativi relays ===
+                std::map<uint64_t, std::pair<std::string, int>> impronte = {
+                  {123123123, {"Imp utente11", 12}},   //tutti i relay
+                  {111111111, {"Imp utente12", 12}},   //tutti i relay
+                  {222222222, {"Imp utente13", 12}},   //tutti i relay
+                  {333333333, {"Imp utente14", 12}},   //tutti i relay
+                  {456456456, {"Imp utente21", 12}},   //tutti i relay
+                  {444444444, {"Imp utente22", 12}},   //tutti i relay
+                  {555555555, {"Imp utente23", 12}},   //tutti i relay
+                  {666666666, {"Imp utente24", 12}}    //tutti i relay
                 };
+                //////////////////////////////////////////////////////////////////
+
+
+                //////////////////////////////////////////////////////////////////
+                // === Mappe Badges e relativi relays ===
+                std::map<uint64_t, std::pair<std::string, int>> badge = {
+                  {777777777,    {"Badge utente1",   12}},   //tutti i relay
+                  {123412342,    {"Badge utente2",   12}},   //tutti i relay 
+                  {432314321,    {"Badge utente3",   12}},   //tutti i relay
+                  {2342365665,   {"Tessera utente4", 12}}    //tutti i relay
+                };
+                //////////////////////////////////////////////////////////////////
+
 
                 // === Verifica impronta ===
                 if (impronte.count(tag)) {
