@@ -421,7 +421,7 @@ switch:
           id(homeassistant_tag_scanned).publish_state("Storico cancellato");
           id(last_unauthorized_keypad_code_sensor).publish_state("");
           id(last_unauthorized_tag_code_sensor).publish_state("");
-          
+          id(user_name_sensor).publish_state("");
       - delay: 500ms
       - switch.turn_off: clear_history_button
 
