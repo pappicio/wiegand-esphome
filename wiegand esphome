@@ -1,5 +1,4 @@
 
-
 esphome:
   name: "apriporte-wiegand"
   friendly_name: apriporte-wiegand
@@ -17,9 +16,6 @@ preferences:
 esp8266:
   board: esp01_1m
   restore_from_flash: true
-
- 
-
  
 logger:
   level: debug
@@ -61,16 +57,13 @@ wifi:
 captive_portal:
  
 #########################################################################
-#########################################################################
 web_server:
   version: 3
   auth:
     username: !secret web_server_username
     password: !secret web_server_password
 #########################################################################
-#########################################################################
 
-#########################################################################
 text_sensor:
   - platform: wifi_info
     ssid:
@@ -108,7 +101,6 @@ text_sensor:
       }
       return { (days +" g; " + hours +" h " + minutes +" m e "+ second +" s").c_str() };
       //return { (String(days) +"g " + String(hours) +"h:" + String(minutes) +"m:"+ String(seconds) +"s").c_str() };
- 
     icon: mdi:clock-start
     update_interval: 5s
 
@@ -155,8 +147,6 @@ text_sensor:
     update_interval: 5s
     icon: mdi:fingerprint
  
-
-
   # Text sensor per le password non autorizzate
   - platform: template
     name: "Password Non Autorizzate"
@@ -195,8 +185,6 @@ text_sensor:
     update_interval: 5s
     icon: mdi:account-off
 
-
-
   - platform: template
     name: "Ultima Password non valida"
     id: last_unauthorized_keypad_code_sensor
@@ -223,14 +211,29 @@ text_sensor:
     name: "User Name2"
     internal: True
 
-
     web_server:
       sorting_weight: 53
   - platform: template
     internal: True
     name: "Tag Riconosciuto"
     id: tag_name
+  
+  - platform: template
+    name: "Formatted Counter"
+    id: formatted_counter_sensor
+    internal: true
+    lambda: |-
+      static int counter = 0;
+      counter++;
+      if (counter > 999999999) {
+        counter = 0;
+      }
 
+      char buffer[16];
+      sprintf(buffer, "id: %09d", counter);
+      return std::string(buffer);
+    update_interval: 100ms  # Ogni 100 ms
+    icon: "mdi:numeric"
 #########################################################################
 sensor:
   - platform: wifi_signal
@@ -246,6 +249,7 @@ sensor:
     update_interval: 5s
 # Usa un output GPIO con id "led_builtin"
  
+
 binary_sensor:
   - platform: template
     name: "Apertura Valida"
@@ -256,16 +260,13 @@ binary_sensor:
       return id(apertura_valida);
 
 globals:
-
   - id: apertura_valida
     type: bool
     initial_value: 'false'  # Inizialmente il codice non è valido
 
-
   - id: last_formatted_code
     type: std::string
     initial_value: ""
-
 
   - id: fingerprint_history
     type: std::vector<std::string>
@@ -279,7 +280,6 @@ globals:
     type: std::vector<std::string>
     initial_value: ""
  
-
   # Aggiunta lista di password non autorizzate
   - id: unauthorized_keypad_codes
     type: std::vector<std::string>
@@ -289,11 +289,7 @@ globals:
   - id: unauthorized_tags
     type: std::vector<std::string>
     initial_value: ""
-    
   
-#########################################################################
-  
- #########################################################################
   - id: last_tag
     type: uint64_t
     restore_value: True
@@ -311,7 +307,6 @@ output:
       inverted: true
     id: led_builtin  # ID dell'output come richiesto
 
-
 interval:
   - interval: 1s
     then:
@@ -322,7 +317,6 @@ interval:
           } else {
             id(led_builtin).turn_off();
           }
-
 
 switch:
   - platform: template
@@ -340,7 +334,6 @@ switch:
         - delay: 4s
         - switch.turn_off: portone_cancello
 
-
   - platform: template
     internal: false
     restore_mode: ALWAYS_OFF
@@ -355,7 +348,6 @@ switch:
       then:
         - delay: 1s
         - switch.turn_off: spesa_da_prendere
-
 
   - platform: gpio
     id: relay1
@@ -379,6 +371,7 @@ switch:
       - globals.set:
           id: apertura_valida
           value: 'false'
+
   - platform: gpio
     id: relay2
     pin: 
@@ -433,7 +426,6 @@ switch:
       - delay: 500ms
       - switch.turn_off: clear_history_button
 
- 
 key_collector:
   - id: pincode_reader
     source_id: mykeypad
@@ -456,10 +448,10 @@ key_collector:
             //////////////////////////////////////////////////////////////////
             // Mappa dei codici validi e relativa azione (relay)
             std::map<std::string, std::pair<std::string, int>> codici_validi = {
-              {"111111111", {"Pwd GLOBALE", 12}}, // tutti e 2 i relay
-              {"222222222", {"Pwd CANCELLO", 1}}, // relay 1
-              {"333333333", {"Pwd PORTONE",  2}}  // relay 2
-            }; 
+              {"121212121", {"Pwd GLOBALE", 12}}, // pilota relay 1 e 2
+              {"111111111", {"Pwd CANCELLO", 1}}, // pilota relay 1 
+              {"222222222", {"Pwd PORTONE",  2}}  // pilota relay 2
+            };
             //////////////////////////////////////////////////////////////////
 
             auto it = codici_validi.find(code);
@@ -484,13 +476,18 @@ key_collector:
               }
 
               id(keypad_codes_sensor)->publish_state(codes_concatenati);
-              id(user_name_sensor)->publish_state(user_name);
+              //id(user_name_sensor)->publish_state(user_name);
+              std::string counter = id(formatted_counter_sensor)->state.c_str();
+              // Combina il user_name con il counter formattato
+              std::string combined = user_name + " (" + counter + ")";
+              id(user_name_sensor)->publish_state(combined);
+
             } else {
               codice_valido = false;
               ESP_LOGW("ACCESSO", "Password NON valida: %s", code.c_str());
               user_name = x.c_str();
               id(user_name_sensor2)->publish_state(user_name);
-              id(user_name_sensor)->publish_state("<" + user_name + ">");
+              //id(user_name_sensor)->publish_state("<" + user_name + ">");
               id(unauthorized_keypad_codes).push_back(code);
               if (id(unauthorized_keypad_codes).size() > 24) {
                 id(unauthorized_keypad_codes).erase(id(unauthorized_keypad_codes).begin());
@@ -505,7 +502,10 @@ key_collector:
               }
 
               id(unauthorized_keypad_codes_sensor)->publish_state(unauthorized_codes_concatenati);
-              id(last_unauthorized_keypad_code_sensor)->publish_state(code);
+              std::string counter = id(formatted_counter_sensor)->state.c_str();
+              // Combina il user_name con il counter formattato
+              std::string combined = code + " (" + counter + ")";
+              id(last_unauthorized_keypad_code_sensor)->publish_state(combined);
             }
 
             // Attiva i relay SOLO se la tastiera è abilitata
@@ -519,9 +519,7 @@ key_collector:
               ESP_LOGI("TAG", "Tastiera DISABILITATA");
             }
         - homeassistant.tag_scanned: !lambda 'return id(user_name_sensor2).state.c_str();'
-
-                
-                
+     
 #on_raw:
 wiegand:
   - id: mykeypad
@@ -534,22 +532,22 @@ wiegand:
 
           // === Mappe impronte ===
           std::map<uint64_t, std::pair<std::string, int>> impronte = {
-            {444444444, {"Imp 1",   2}}, // relay 2
-            {555555555, {"Imp 2",   1}}, // relay 1
-            {666666666, {"Imp 3",  12}}, // tutti e 2 i relay
-            {777777777, {"Imp 4",  12}}, // tutti e 2 i relay
-            {888888888, {"Imp 11", 12}}, // tutti e 2 i relay
-            {999999999, {"Imp 12", 12}}, // tutti e 2 i relay
-            {000000000, {"Imp 13", 12}}, // tutti e 2 i relay
-            {121212121, {"Imp 14", 12}}  // tutti e 2 i relay
+            {011111111, {"Imp 11", 12}}, // pilota relay 1 e 2
+            {022222222, {"Imp 12", 12}}, // pilota relay 1 e 2
+            {033333333, {"Imp 13", 12}}, // pilota relay 1 e 2
+            {044444444, {"Imp 14", 12}}, // pilota relay 1 e 2
+            {111111111, {"Imp 21", 12}}, // pilota relay 1 e 2
+            {122222222, {"Imp 22", 12}}, // pilota relay 1 e 2
+            {133333333, {"Imp 23", 12}}, // pilota relay 1 e 2
+            {311111111, {"Imp 24", 12}}  // pilota relay 1 e 2
           };
 
           // === Mappe badge ===
           std::map<uint64_t, std::pair<std::string, int>> badge = {
-            {3213321213,  {"Badge 1",    1}}, // relay 1
-            {1231231231,  {"Badge 2",   12}}, // tutti e 2 i relay
-            {3454565671,  {"Badge 3",   12}}, // tutti e 2 i relay
-            {7896785671,  {"Badge ATe",  2}}  // relay 2
+            {566666666,  {"Badge 1",   12}}, // pilota relay 1 e 2
+            {577777777,  {"Badge 2",   12}}, // pilota relay 1 e 2
+            {688888888,  {"Badge 3",   12}}, // pilota relay 1 e 2
+            {699999999,  {"Badge ATe", 12}}  // pilota relay 1 e 2
           };
 
           bool autorizzato = false;
@@ -560,7 +558,12 @@ wiegand:
             name = impronte[tag].first;
             relay = impronte[tag].second;
             autorizzato = true;
-            id(user_name_sensor)->publish_state(name);
+            //id(user_name_sensor)->publish_state(name);
+            std::string counter = id(formatted_counter_sensor)->state.c_str();
+            // Combina il user_name con il counter formattato
+            std::string combined = name + " (" + counter + ")";
+            id(user_name_sensor)->publish_state(combined);
+
             ESP_LOGI("ACCESSO", "Impronta riconosciuta: %s", name.c_str());
 
             id(fingerprint_history).push_back(name);
@@ -581,7 +584,12 @@ wiegand:
             name = badge[tag].first;
             relay = badge[tag].second;
             autorizzato = true;
-            id(user_name_sensor)->publish_state(name);
+            //id(user_name_sensor)->publish_state(name);
+            std::string counter = id(formatted_counter_sensor)->state.c_str();
+            // Combina il user_name con il counter formattato
+            std::string combined = name + " (" + counter + ")";
+            id(user_name_sensor)->publish_state(combined);
+
             ESP_LOGI("ACCESSO", "Badge riconosciuto: %s", name.c_str());
 
             id(tag_history).push_back(name);
@@ -602,7 +610,7 @@ wiegand:
             autorizzato = false;
             ESP_LOGI("ACCESSO", "Tag o impronta NON autorizzato!");
             name = x.c_str();
-            id(user_name_sensor)->publish_state("<" + name + ">");
+            //id(user_name_sensor)->publish_state("<" + name + ">");
             id(unauthorized_tags).push_back(x);
             if (id(unauthorized_tags).size() > 24) {
               id(unauthorized_tags).erase(id(unauthorized_tags).begin());
@@ -615,7 +623,10 @@ wiegand:
             if (!unauthorized_tags_str.empty()) unauthorized_tags_str.erase(unauthorized_tags_str.size() - 3);
 
             id(unauthorized_tags_sensor)->publish_state(unauthorized_tags_str);
-            id(last_unauthorized_tag_code_sensor).publish_state(x.c_str());
+            std::string counter = id(formatted_counter_sensor)->state.c_str();
+            // Combina il user_name con il counter formattato
+            std::string combined = x + " (" + counter + ")";
+            id(last_unauthorized_tag_code_sensor).publish_state(combined);
           }
 
           // Aggiorna variabile globale con il nome identificato
@@ -634,7 +645,6 @@ wiegand:
           }
       - homeassistant.tag_scanned: !lambda 'return id(tag_name).state.c_str();'
 
-
 script:
   - id: accensione_relay12
     then:
@@ -646,8 +656,6 @@ script:
     then:
       - switch.turn_on: relay1
 
-
   - id: accensione_relay2
     then:
       - switch.turn_on: relay2
-
