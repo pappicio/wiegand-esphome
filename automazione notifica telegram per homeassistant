@@ -1,25 +1,45 @@
 alias: notifica telegram su password e tag errato
-description: Invia notifica Telegram per codice o tag non autorizzato
-triggers:
-  - entity_id: sensor.apriporte_wiegand_ultima_password_non_valida
-    trigger: state
-  - entity_id: sensor.apriporte_wiegand_ultimo_tag_o_impronta_non_valido
-    trigger: state
-conditions:
+description: Invia notifica Telegram per codice o tag non autorizzato o utente autorizzato
+trigger:
+  - platform: state
+    entity_id: sensor.apriporte_wiegand_ultima_password_non_valida
+  - platform: state
+    entity_id: sensor.apriporte_wiegand_ultimo_tag_o_impronta_non_valido
+  - platform: state
+    entity_id: sensor.apriporte_wiegand_user_name
+
+condition:
   - condition: template
-    value_template: "{{ trigger.to_state.state not in [\"\", \"unknown\", \"unavailable\"] }}"
-actions:
-  - data:
-      title: 🔐 Accesso negato!
-      message: >-
-        {% if trigger.entity_id ==
-        'sensor.apriporte_wiegand_ultima_password_non_valida' %}
-          ❌ Password non valida: {{ states('sensor.apriporte_wiegand_ultima_password_non_valida') }}
-        {% elif trigger.entity_id ==
-        'sensor.apriporte_wiegand_ultimo_tag_o_impronta_non_valido' %}
-          ❌ Badge/impronta non valido: {{ states('sensor.apriporte_wiegand_ultimo_tag_o_impronta_non_valido') }}
-        {% else %}
-          ⚠️ Tentativo di accesso negato.
+    value_template: "{{ trigger.to_state.state not in ['', 'unknown', 'unavailable'] }}"
+
+action:
+  - service: notify.telegram
+    data:
+      title: >-
+        {% if trigger.entity_id == 'sensor.apriporte_wiegand_ultima_password_non_valida' %}
+          🔐 Accesso negato!
+        {% elif trigger.entity_id == 'sensor.apriporte_wiegand_ultimo_tag_o_impronta_non_valido' %}
+          🔐 Accesso negato!
+        {% elif trigger.entity_id == 'sensor.apriporte_wiegand_user_name' %}
+          {% set s = trigger.to_state.state %}
+          {% if s.startswith('<') and s.endswith('>') %}
+            🔐 Accesso negato!
+          {% else %}
+            ✅ Accesso autorizzato
+          {% endif %}
         {% endif %}
-    action: notify.telegram
+      message: >-
+        {% if trigger.entity_id == 'sensor.apriporte_wiegand_ultima_password_non_valida' %}
+          ❌ Password non valida: {{ trigger.to_state.state }}
+        {% elif trigger.entity_id == 'sensor.apriporte_wiegand_ultimo_tag_o_impronta_non_valido' %}
+          ❌ Badge/impronta non valido: {{ trigger.to_state.state }}
+        {% elif trigger.entity_id == 'sensor.apriporte_wiegand_user_name' %}
+          {% set s = trigger.to_state.state %}
+          {% if s.startswith('<') and s.endswith('>') %}
+            ❌ Utente non autorizzato: {{ s }}
+          {% else %}
+            👤 Utente autorizzato: {{ s }}
+          {% endif %}
+        {% endif %}
+
 mode: single
