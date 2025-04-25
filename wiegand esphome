@@ -534,8 +534,8 @@ wiegand:
 
           // === Mappe impronte ===
           std::map<uint64_t, std::pair<std::string, int>> impronte = {
-            {444444444, {"Imp 1",  12}}, // tutti e 2 i relay
-            {555555555, {"Imp 2",  12}}, // tutti e 2 i relay
+            {444444444, {"Imp 1",   2}}, // relay 2
+            {555555555, {"Imp 2",   1}}, // relay 1
             {666666666, {"Imp 3",  12}}, // tutti e 2 i relay
             {777777777, {"Imp 4",  12}}, // tutti e 2 i relay
             {888888888, {"Imp 11", 12}}, // tutti e 2 i relay
@@ -546,10 +546,10 @@ wiegand:
 
           // === Mappe badge ===
           std::map<uint64_t, std::pair<std::string, int>> badge = {
-            {3213321213,  {"Badge 1",   12}}, // tutti e 2 i relay
+            {3213321213,  {"Badge 1",    1}}, // relay 1
             {1231231231,  {"Badge 2",   12}}, // tutti e 2 i relay
             {3454565671,  {"Badge 3",   12}}, // tutti e 2 i relay
-            {7896785671,  {"Badge ATe", 12}}  // tutti e 2 i relay
+            {7896785671,  {"Badge ATe",  2}}  // relay 2
           };
 
           bool autorizzato = false;
