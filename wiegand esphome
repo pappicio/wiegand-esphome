@@ -217,12 +217,20 @@ text_sensor:
     icon: "mdi:account"
     web_server:
       sorting_weight: 53
-      
+
+  - platform: template
+    id: user_name_sensor2
+    name: "User Name2"
+    internal: True
+
+
+    web_server:
+      sorting_weight: 53
   - platform: template
     internal: True
     name: "Tag Riconosciuto"
     id: tag_name
-     
+
 #########################################################################
 sensor:
   - platform: wifi_signal
@@ -448,10 +456,10 @@ key_collector:
             //////////////////////////////////////////////////////////////////
             // Mappa dei codici validi e relativa azione (relay)
             std::map<std::string, std::pair<std::string, int>> codici_validi = {
-              {"12341234", {"Pwd GLOBALE",  12}}, //tutti e due i relay
-              {"12312412", {"Pwd CANCELLO",  1}}, //relay 1
-              {"19876543", {"Pwd PORTONE",   2}}  //relay 2
-            };
+              {"111111111", {"Pwd GLOBALE", 12}}, // tutti e 2 i relay
+              {"222222222", {"Pwd CANCELLO", 1}}, // relay 1
+              {"333333333", {"Pwd PORTONE",  2}}  // relay 2
+            }; 
             //////////////////////////////////////////////////////////////////
 
             auto it = codici_validi.find(code);
@@ -481,7 +489,8 @@ key_collector:
               codice_valido = false;
               ESP_LOGW("ACCESSO", "Password NON valida: %s", code.c_str());
               user_name = x.c_str();
-              id(user_name_sensor)->publish_state(user_name);
+              id(user_name_sensor2)->publish_state(user_name);
+              id(user_name_sensor)->publish_state("<" + user_name + ">");
               id(unauthorized_keypad_codes).push_back(code);
               if (id(unauthorized_keypad_codes).size() > 24) {
                 id(unauthorized_keypad_codes).erase(id(unauthorized_keypad_codes).begin());
@@ -509,7 +518,7 @@ key_collector:
             } else {
               ESP_LOGI("TAG", "Tastiera DISABILITATA");
             }
-        - homeassistant.tag_scanned: !lambda 'return id(user_name_sensor).state.c_str();'
+        - homeassistant.tag_scanned: !lambda 'return id(user_name_sensor2).state.c_str();'
 
                 
                 
@@ -525,22 +534,22 @@ wiegand:
 
           // === Mappe impronte ===
           std::map<uint64_t, std::pair<std::string, int>> impronte = {
-            {111111111, {"Imp 1", 12}},
-            {222222222, {"Imp 2", 12}},
-            {444444444, {"Imp 3", 12}},
-            {333333333, {"Imp 4", 12}},
-            {666666666, {"Imp 5", 12}},
-            {555555555, {"Imp 6", 12}},
-            {777777777, {"Imp 7", 12}},
-            {888888888, {"Imp 8", 12}}
+            {444444444, {"Imp 1",  12}}, // tutti e 2 i relay
+            {555555555, {"Imp 2",  12}}, // tutti e 2 i relay
+            {666666666, {"Imp 3",  12}}, // tutti e 2 i relay
+            {777777777, {"Imp 4",  12}}, // tutti e 2 i relay
+            {888888888, {"Imp 11", 12}}, // tutti e 2 i relay
+            {999999999, {"Imp 12", 12}}, // tutti e 2 i relay
+            {000000000, {"Imp 13", 12}}, // tutti e 2 i relay
+            {121212121, {"Imp 14", 12}}  // tutti e 2 i relay
           };
 
           // === Mappe badge ===
           std::map<uint64_t, std::pair<std::string, int>> badge = {
-            {112233445,  {"Badge 1", 12}},
-            {554433221,  {"Badge 2", 12}},
-            {123454332,  {"Badge 3", 12}},
-            {654312345, {"Badge ATe",12}}
+            {3213321213,  {"Badge 1",   12}}, // tutti e 2 i relay
+            {1231231231,  {"Badge 2",   12}}, // tutti e 2 i relay
+            {3454565671,  {"Badge 3",   12}}, // tutti e 2 i relay
+            {7896785671,  {"Badge ATe", 12}}  // tutti e 2 i relay
           };
 
           bool autorizzato = false;
@@ -551,6 +560,7 @@ wiegand:
             name = impronte[tag].first;
             relay = impronte[tag].second;
             autorizzato = true;
+            id(user_name_sensor)->publish_state(name);
             ESP_LOGI("ACCESSO", "Impronta riconosciuta: %s", name.c_str());
 
             id(fingerprint_history).push_back(name);
@@ -571,6 +581,7 @@ wiegand:
             name = badge[tag].first;
             relay = badge[tag].second;
             autorizzato = true;
+            id(user_name_sensor)->publish_state(name);
             ESP_LOGI("ACCESSO", "Badge riconosciuto: %s", name.c_str());
 
             id(tag_history).push_back(name);
@@ -591,6 +602,7 @@ wiegand:
             autorizzato = false;
             ESP_LOGI("ACCESSO", "Tag o impronta NON autorizzato!");
             name = x.c_str();
+            id(user_name_sensor)->publish_state("<" + name + ">");
             id(unauthorized_tags).push_back(x);
             if (id(unauthorized_tags).size() > 24) {
               id(unauthorized_tags).erase(id(unauthorized_tags).begin());
