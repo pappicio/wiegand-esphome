@@ -1,31 +1,34 @@
 alias: Notifica Telegram Accesso Wiegand
 description: Notifica se accesso è autorizzato o negato per password, badge o impronta
-trigger:
+triggers:
   - entity_id:
-      - sensor.apriporte_wiegand_user_name
+      - sensor.apriporte_wiegand_ultimo_accesso
       - sensor.apriporte_wiegand_ultima_password_non_valida
       - sensor.apriporte_wiegand_ultimo_tag_o_impronta_non_valido
-    platform: state
-condition:
+    trigger: state
+conditions:
   - condition: template
     value_template: "{{ trigger.to_state.state not in ['', 'unknown', 'unavailable'] }}"
-action:
+actions:
   - data:
-      title: >-
-        {% if trigger.entity_id == 'sensor.apriporte_wiegand_user_name' %}
+      title: |-
+        {% if trigger.entity_id == 'sensor.apriporte_wiegand_ultimo_accesso' %}
           ✅ Accesso autorizzato
         {% else %}
           🔐 Accesso negato!
         {% endif %}
       message: >-
-        {% if trigger.entity_id == 'sensor.apriporte_wiegand_user_name' %}
+        {% if trigger.entity_id == 'sensor.apriporte_wiegand_ultimo_accesso' %}
           👤 Utente autorizzato: {{ trigger.to_state.state }}
-        {% elif trigger.entity_id == 'sensor.apriporte_wiegand_ultima_password_non_valida' %}
+        {% elif trigger.entity_id ==
+        'sensor.apriporte_wiegand_ultima_password_non_valida' %}
           ❌ Password non valida: {{ trigger.to_state.state }}
-        {% elif trigger.entity_id == 'sensor.apriporte_wiegand_ultimo_tag_o_impronta_non_valido' %}
+        {% elif trigger.entity_id ==
+        'sensor.apriporte_wiegand_ultimo_tag_o_impronta_non_valido' %}
           ❌ Badge o impronta non validi: {{ trigger.to_state.state }}
         {% else %}
           ⚠️ Tentativo di accesso non autorizzato.
         {% endif %}
-    service: notify.telegram
+    action: notify.telegram
 mode: single
+
