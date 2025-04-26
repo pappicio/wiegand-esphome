@@ -1,4 +1,5 @@
 
+
 esphome:
   name: "apriporte-wiegand"
   friendly_name: apriporte-wiegand
@@ -196,12 +197,13 @@ text_sensor:
     name: "Ultimo TAG o Impronta non valido"
     id: last_unauthorized_tag_code_sensor
     update_interval: never
+    icon: "mdi:fingerprint-off"
     web_server:
       sorting_weight: 51
 
   - platform: template
     id: user_name_sensor
-    name: "User Name"
+    name: "Ultimo accesso"
     icon: "mdi:account"
     web_server:
       sorting_weight: 53
