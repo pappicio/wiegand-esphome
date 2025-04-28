@@ -450,9 +450,9 @@ key_collector:
             //////////////////////////////////////////////////////////////////
             // Mappa dei codici validi e relativa azione (relay)
             std::map<std::string, std::pair<std::string, int>> codici_validi = {
-              {"19751983", {"Pwd GLOBALE", 12}},
-              {"19758383", {"Pwd CANCELLO", 1}},
-              {"19757575", {"Pwd PORTONE", 2}}
+               {"121212121", {"Pwd GLOBALE", 12}}, // pilota relay 1 e 2
+               {"111111111", {"Pwd CANCELLO", 1}}, // pilota relay 1 
+               {"222222222", {"Pwd PORTONE",  2}}  // pilota relay 2
             };
             //////////////////////////////////////////////////////////////////
 
