@@ -1,0 +1,661 @@
+
+esphome:
+  name: "apriporte-wiegand"
+  friendly_name: apriporte-wiegand
+ 
+################################################################
+preferences:
+  flash_write_interval: 1sec
+################################################################
+
+#esp32:
+#  board: esp32-c3-devkitm-1
+#  framework:
+#    type: arduino
+  
+esp8266:
+  board: esp01_1m
+  restore_from_flash: true
+ 
+logger:
+  level: debug
+  logs:
+    text_sensor: error
+    number: ERROR
+    sensor: ERROR
+    ultrasonic.sensor: ERROR
+
+# Enable Home Assistant API
+api:
+
+##############################################################
+# Allow Over-The-Air updates
+ota:
+  - platform: esphome
+    password: !secret ota_password
+##############################################################
+# Allow provisioning Wi-Fi via serial
+improv_serial:
+
+wifi:
+  networks:
+    - ssid: peppe4
+    - password: !secret wifi_password4
+    - ssid: peppe2
+    - password: !secret wifi_password2
+    - ssid: peppe6
+    - password: !secret wifi_password6
+  manual_ip:
+    static_ip: 192.168.1.79
+    gateway: 192.168.1.1
+    subnet: 255.255.255.0
+    dns1: 192.168.1.1
+
+  ap:
+    {}
+
+captive_portal:
+ 
+#########################################################################
+web_server:
+  version: 3
+  auth:
+    username: !secret web_server_username
+    password: !secret web_server_password
+#########################################################################
+
+text_sensor:
+  - platform: wifi_info
+    ssid:
+      name: "wifi connesso a:"
+      web_server:
+        sorting_weight: 70
+      
+  - platform: template
+    name: "Uptime:"
+    web_server:
+      sorting_weight: 81
+    lambda: |-
+      int seconds = (id(uptimex).state);
+      String days = String(seconds / (24 * 3600));
+      //if (days.length() == 1)
+      //{
+      //days="0" + days;
+      //}
+      seconds = seconds % (24 * 3600); 
+      String hours = String(seconds / 3600);
+      if (hours.length() == 1)
+      {
+      hours="0" + hours;
+      }
+      seconds = seconds % 3600;
+      String minutes = String(seconds /  60);
+      if (minutes.length() == 1)
+      {
+      minutes="0" + minutes;
+      }
+      String second = String(seconds % 60);
+      if (second.length() == 1)
+      {
+      second="0" + second;
+      }
+      return { (days +" g; " + hours +" h " + minutes +" m e "+ second +" s").c_str() };
+      //return { (String(days) +"g " + String(hours) +"h:" + String(minutes) +"m:"+ String(seconds) +"s").c_str() };
+    icon: mdi:clock-start
+    update_interval: 5s
+
+  - platform: template
+    name: "Badge Autorizzati"
+    id: homeassistant_tag_scanned
+    icon: mdi:badge-account
+    web_server:
+      sorting_weight: 20
+
+  - platform: template
+    name: "Password autorizzate"
+    id: keypad_codes_sensor
+    web_server:
+      sorting_weight: 21
+    lambda: |-
+      std::string result;
+      for (const auto& code : id(keypad_code_history)) {
+          result += code + ", \n";
+      }
+      if (!result.empty()) {
+          result.pop_back();
+          result.pop_back();
+      }
+      return { result.c_str() };
+    update_interval: 5s
+    icon: mdi:form-textbox-password
+
+  - platform: template
+    name: "Impronte autorizzate"
+    web_server:
+      sorting_weight: 22
+    id: fingerprint_scanned_sensor
+    lambda: |-
+      std::string result;
+      for (const auto& print : id(fingerprint_history)) {
+          result += print + ", \n";
+      }
+      if (!result.empty()) {
+          result.pop_back();
+          result.pop_back();
+      }
+      return { result.c_str() };
+    update_interval: 5s
+    icon: mdi:fingerprint
+ 
+  # Text sensor per le password non autorizzate
+  - platform: template
+    name: "Password Non Autorizzate"
+    web_server:
+      sorting_weight: 23
+    id: unauthorized_keypad_codes_sensor
+    lambda: |-
+      std::string result;
+      for (const auto& code : id(unauthorized_keypad_codes)) {
+          result += code + ", \n";
+      }
+      if (!result.empty()) {
+          result.pop_back();
+          result.pop_back();
+      }
+      return { result.c_str() };
+    update_interval: 5s
+    icon: mdi:form-textbox-password
+
+  # Text sensor per i badge non autorizzati
+  - platform: template
+    name: "Badge o impronte non autorizzati"
+    web_server:
+      sorting_weight: 24
+    id: unauthorized_tags_sensor
+    lambda: |-
+      std::string result;
+      for (const auto& tag : id(unauthorized_tags)) {
+          result += tag + ", \n";
+      }
+      if (!result.empty()) {
+          result.pop_back();
+          result.pop_back();
+      }
+      return { result.c_str() };
+    update_interval: 5s
+    icon: mdi:account-off
+
+  - platform: template
+    name: "Ultima Password non valida"
+    id: last_unauthorized_keypad_code_sensor
+    update_interval: never
+    web_server:
+      sorting_weight: 50
+
+  - platform: template
+    name: "Ultimo TAG o Impronta non valido"
+    id: last_unauthorized_tag_code_sensor
+    update_interval: never
+    icon: "mdi:fingerprint-off"
+    web_server:
+      sorting_weight: 51
+
+  - platform: template
+    id: user_name_sensor
+    name: "Ultimo accesso"
+    icon: "mdi:account"
+    web_server:
+      sorting_weight: 53
+
+  - platform: template
+    id: user_name_sensor2
+    name: "User Name2"
+    internal: True
+
+    web_server:
+      sorting_weight: 53
+  - platform: template
+    internal: True
+    name: "Tag Riconosciuto"
+    id: tag_name
+  
+  - platform: template
+    name: "Formatted Counter"
+    id: formatted_counter_sensor
+    internal: true
+    lambda: |-
+      static int counter = 0;
+      counter++;
+      if (counter > 999999999) {
+        counter = 0;
+      }
+
+      char buffer[16];
+      sprintf(buffer, "id: %09d", counter);
+      return std::string(buffer);
+    update_interval: 100ms  # Ogni 100 ms
+    icon: "mdi:numeric"
+#########################################################################
+sensor:
+  - platform: wifi_signal
+    name: "Segnale WiFi"
+    web_server:
+      sorting_weight: 80
+    update_interval: 10s
+
+  - platform: uptime
+    name: "Uptime"
+    internal: true
+    id: uptimex
+    update_interval: 5s
+# Usa un output GPIO con id "led_builtin"
+ 
+
+binary_sensor:
+  - platform: template
+    name: "Apertura Valida"
+    id: apertura_valida_sensor
+    web_server:
+      sorting_weight: 1
+    lambda: |-
+      return id(apertura_valida);
+
+globals:
+  - id: apertura_valida
+    type: bool
+    initial_value: 'false'  # Inizialmente il codice non è valido
+
+  - id: last_formatted_code
+    type: std::string
+    initial_value: ""
+
+  - id: fingerprint_history
+    type: std::vector<std::string>
+    initial_value: ""
+
+  - id: keypad_code_history
+    type: std::vector<std::string>
+    initial_value: ""
+  
+  - id: tag_history
+    type: std::vector<std::string>
+    initial_value: ""
+ 
+  # Aggiunta lista di password non autorizzate
+  - id: unauthorized_keypad_codes
+    type: std::vector<std::string>
+    initial_value: ""
+
+  # Aggiunta lista di badge non autorizzati
+  - id: unauthorized_tags
+    type: std::vector<std::string>
+    initial_value: ""
+  
+  - id: last_tag
+    type: uint64_t
+    restore_value: True
+    initial_value: '0'  # L'ultimo tag letto sarà un numero
+ 
+  - id: led_state
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+output:
+  - platform: gpio
+    pin:
+      number: GPIO2
+      inverted: true
+    id: led_builtin  # ID dell'output come richiesto
+
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          id(led_state) = !id(led_state);
+          if (id(led_state)) {
+            id(led_builtin).turn_on();
+          } else {
+            id(led_builtin).turn_off();
+          }
+
+switch:
+  - platform: template
+    internal: false
+    restore_mode: ALWAYS_OFF 
+    name: "portone cancello"
+    icon: mdi:door
+    web_server:
+      sorting_weight: 10
+    id: portone_cancello
+    optimistic: true
+    lambda: return id(portone_cancello).state;  
+    on_turn_on: 
+      then:
+        - delay: 4s
+        - switch.turn_off: portone_cancello
+
+  - platform: template
+    internal: false
+    restore_mode: ALWAYS_OFF
+    name: "spesa da prendere"
+    icon: "mdi:shopping-cart"
+    web_server:
+      sorting_weight: 9
+    id: spesa_da_prendere
+    optimistic: true
+    lambda: return id(spesa_da_prendere).state;  
+    on_turn_on: 
+      then:
+        - delay: 1s
+        - switch.turn_off: spesa_da_prendere
+
+  - platform: gpio
+    id: relay1
+    pin: 
+      number: GPIO4
+      inverted: true
+      mode: 
+        output: True
+        open_drain: True
+    restore_mode: ALWAYS_OFF
+    name: "Apri Portone"
+    web_server:
+      sorting_weight: 4
+    icon: mdi:garage-open
+    on_turn_on:
+      - globals.set:
+          id: apertura_valida
+          value: 'true'
+      - delay: 1000ms
+      - switch.turn_off: relay1  # Spegne il relè dopo 1000ms
+      - globals.set:
+          id: apertura_valida
+          value: 'false'
+
+  - platform: gpio
+    id: relay2
+    pin: 
+      number: GPIO5
+      inverted: true
+      mode: 
+        output: True
+        open_drain: True
+    restore_mode: ALWAYS_OFF
+    name: "Apri Cancello"
+    web_server:
+      sorting_weight: 5
+    icon: mdi:gate
+    on_turn_on:
+      - globals.set:
+          id: apertura_valida
+          value: 'true'
+      - delay: 1000ms
+      - switch.turn_off: relay2  # Spegne il relè dopo 1000ms
+      - globals.set:
+          id: apertura_valida
+          value: 'false'
+
+  - platform: template
+    id: tag_scan_enabled
+    name: "Abilita Tastiera"
+    web_server:
+      sorting_weight: 3
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    icon: mdi:keyboard
+
+  - platform: template
+    id: clear_history_button
+    name: "Cancella Storico"
+    web_server:
+      sorting_weight: 11
+    icon: mdi:history
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - lambda: |-
+          id(unauthorized_tags).clear();
+          id(unauthorized_keypad_codes).clear();
+          id(tag_history).clear();
+          id(fingerprint_history).clear();
+          id(keypad_code_history).clear();
+          id(homeassistant_tag_scanned).publish_state("Storico cancellato");
+          id(last_unauthorized_keypad_code_sensor).publish_state("");
+          id(last_unauthorized_tag_code_sensor).publish_state("");
+          id(user_name_sensor).publish_state("");
+      - delay: 500ms
+      - switch.turn_off: clear_history_button
+
+key_collector:
+  - id: pincode_reader
+    source_id: mykeypad
+    min_length: 6
+    max_length: 9
+    end_keys: "#"
+    end_key_required: true
+    clear_keys: "*"
+    allowed_keys: "0123456789"
+    timeout: 5s
+   on_result:
+      then:
+        - lambda: |-
+            std::string code = x;
+            id(last_formatted_code) = code;
+            std::string user_name = "Unknown";
+            bool codice_valido = false;
+            int relay = 0;
+
+            //////////////////////////////////////////////////////////////////
+            // Mappa dei codici validi e relativa azione (relay)
+            std::map<std::string, std::pair<std::string, int>> codici_validi = {
+               {"121212133", {"Pwd GLOBALE", 12}}, // pilota relay 1 e 2
+               {"111111221", {"Pwd CANCELLO", 1}}, // pilota relay 1 
+               {"222221122", {"Pwd PORTONE",  2}}  // pilota relay 2
+            };
+            //////////////////////////////////////////////////////////////////
+
+            auto it = codici_validi.find(code);
+            if (it != codici_validi.end()) {
+              codice_valido = true;
+              user_name = it->second.first;
+              relay = it->second.second;
+              id(user_name_sensor2)->publish_state(user_name);
+              ESP_LOGI("ACCESSO", "Password VALIDA: %s", user_name.c_str());
+
+              id(keypad_code_history).push_back(user_name);
+              if (id(keypad_code_history).size() > 24) {
+                id(keypad_code_history).erase(id(keypad_code_history).begin());
+              }
+
+              std::string codes_concatenati;
+              for (const auto& valid_code : id(keypad_code_history)) {
+                codes_concatenati += valid_code + ", \n";
+              }
+              if (!codes_concatenati.empty()) {
+                codes_concatenati.erase(codes_concatenati.size() - 3);
+              }
+
+              id(keypad_codes_sensor)->publish_state(codes_concatenati);
+              //id(user_name_sensor)->publish_state(user_name);
+              std::string counter = id(formatted_counter_sensor)->state.c_str();
+              // Combina il user_name con il counter formattato
+              std::string combined = user_name + " (" + counter + ")";
+              id(user_name_sensor)->publish_state(combined);
+
+            } else {
+              codice_valido = false;
+              ESP_LOGW("ACCESSO", "Password NON valida: %s", code.c_str());
+              user_name = x.c_str();
+              id(user_name_sensor2)->publish_state(user_name);
+              //id(user_name_sensor)->publish_state("<" + user_name + ">");
+              id(unauthorized_keypad_codes).push_back(code);
+              if (id(unauthorized_keypad_codes).size() > 24) {
+                id(unauthorized_keypad_codes).erase(id(unauthorized_keypad_codes).begin());
+              }
+
+              std::string unauthorized_codes_concatenati;
+              for (const auto& invalid_code : id(unauthorized_keypad_codes)) {
+                unauthorized_codes_concatenati += invalid_code + ", \n";
+              }
+              if (!unauthorized_codes_concatenati.empty()) {
+                unauthorized_codes_concatenati.erase(unauthorized_codes_concatenati.size() - 3);
+              }
+
+              id(unauthorized_keypad_codes_sensor)->publish_state(unauthorized_codes_concatenati);
+              std::string counter = id(formatted_counter_sensor)->state.c_str();
+              // Combina il user_name con il counter formattato
+              std::string combined = code + " (" + counter + ")";
+              id(last_unauthorized_keypad_code_sensor)->publish_state(combined);
+            }
+
+            // Attiva i relay SOLO se la tastiera è abilitata
+            if (id(tag_scan_enabled).state) {
+              if (codice_valido) {
+                if (relay == 1) id(accensione_relay1)->execute();
+                else if (relay == 2) id(accensione_relay2)->execute();
+                else if (relay == 12) id(accensione_relay12)->execute();
+              }
+            } else {
+              ESP_LOGI("TAG", "Tastiera DISABILITATA");
+            }
+        - homeassistant.tag_scanned: !lambda 'return id(user_name_sensor2).state.c_str();'
+     
+wiegand:
+  - id: mykeypad
+    d0: GPIO13
+    d1: GPIO12
+    on_tag:
+      - lambda: |-
+          uint64_t tag = std::stoull(x.c_str());
+          std::string name = "Unknown";
+
+          // === Mappe impronte ===
+          std::map<uint64_t, std::pair<std::string, int>> impronte = {
+            {011111111, {"Imp 11", 12}}, // pilota relay 1 e 2
+            {022222222, {"Imp 12", 12}}, // pilota relay 1 e 2
+            {033333333, {"Imp 13", 12}}, // pilota relay 1 e 2
+            {044444444, {"Imp 14", 12}}, // pilota relay 1 e 2
+            {111111111, {"Imp 21", 12}}, // pilota relay 1 e 2
+            {122222222, {"Imp 22", 12}}, // pilota relay 1 e 2
+            {133333333, {"Imp 23", 12}}, // pilota relay 1 e 2
+            {311111111, {"Imp 24", 12}}  // pilota relay 1 e 2
+          };
+
+          // === Mappe badge ===
+          std::map<uint64_t, std::pair<std::string, int>> badge = {
+            {566666666,  {"Badge 1",   12}}, // pilota relay 1 e 2
+            {577777777,  {"Badge 2",   12}}, // pilota relay 1 e 2
+            {688888888,  {"Badge 3",   12}}, // pilota relay 1 e 2
+            {699999999,  {"Badge ATe", 12}}  // pilota relay 1 e 2
+          };
+
+          bool autorizzato = false;
+          int relay = 0;
+
+          // Verifica impronta
+          if (impronte.count(tag)) {
+            name = impronte[tag].first;
+            relay = impronte[tag].second;
+            autorizzato = true;
+            //id(user_name_sensor)->publish_state(name);
+            std::string counter = id(formatted_counter_sensor)->state.c_str();
+            // Combina il user_name con il counter formattato
+            std::string combined = name + " (" + counter + ")";
+            id(user_name_sensor)->publish_state(combined);
+
+            ESP_LOGI("ACCESSO", "Impronta riconosciuta: %s", name.c_str());
+
+            id(fingerprint_history).push_back(name);
+            if (id(fingerprint_history).size() > 24) {
+              id(fingerprint_history).erase(id(fingerprint_history).begin());
+            }
+
+            std::string history;
+            for (const auto& n : id(fingerprint_history)) {
+              history += n + ", \n";
+            }
+            if (!history.empty()) history.erase(history.size() - 3);
+            id(fingerprint_scanned_sensor)->publish_state(history);
+          }
+
+          // Verifica badge
+          else if (badge.count(tag)) {
+            name = badge[tag].first;
+            relay = badge[tag].second;
+            autorizzato = true;
+            //id(user_name_sensor)->publish_state(name);
+            std::string counter = id(formatted_counter_sensor)->state.c_str();
+            // Combina il user_name con il counter formattato
+            std::string combined = name + " (" + counter + ")";
+            id(user_name_sensor)->publish_state(combined);
+
+            ESP_LOGI("ACCESSO", "Badge riconosciuto: %s", name.c_str());
+
+            id(tag_history).push_back(name);
+            if (id(tag_history).size() > 24) {
+              id(tag_history).erase(id(tag_history).begin());
+            }
+
+            std::string tag_history_str;
+            for (const auto& n : id(tag_history)) {
+              tag_history_str += n + ", \n";
+            }
+            if (!tag_history_str.empty()) tag_history_str.erase(tag_history_str.size() - 3);
+            id(homeassistant_tag_scanned)->publish_state(tag_history_str);
+          }
+
+          // Non autorizzato
+          else {
+            autorizzato = false;
+            ESP_LOGI("ACCESSO", "Tag o impronta NON autorizzato!");
+            name = x.c_str();
+            //id(user_name_sensor)->publish_state("<" + name + ">");
+            id(unauthorized_tags).push_back(x);
+            if (id(unauthorized_tags).size() > 24) {
+              id(unauthorized_tags).erase(id(unauthorized_tags).begin());
+            }
+
+            std::string unauthorized_tags_str;
+            for (const auto& tag_str : id(unauthorized_tags)) {
+              unauthorized_tags_str += tag_str + ", \n";
+            }
+            if (!unauthorized_tags_str.empty()) unauthorized_tags_str.erase(unauthorized_tags_str.size() - 3);
+
+            id(unauthorized_tags_sensor)->publish_state(unauthorized_tags_str);
+            std::string counter = id(formatted_counter_sensor)->state.c_str();
+            // Combina il user_name con il counter formattato
+            std::string combined = x + " (" + counter + ")";
+            id(last_unauthorized_tag_code_sensor).publish_state(combined);
+          }
+
+          // Aggiorna variabile globale con il nome identificato
+          id(tag_name).publish_state(name);
+
+          // === Attiva relè SOLO se tastiera abilitata ===
+
+          if (id(tag_scan_enabled).state) {
+            if (autorizzato) {
+              if (relay == 1) id(accensione_relay1)->execute();
+              else if (relay == 2) id(accensione_relay2)->execute();
+              else if (relay == 12) id(accensione_relay12)->execute();
+            }
+          } else {
+            ESP_LOGI("TAG", "Tastiera DISABILITATA");
+          }
+      - homeassistant.tag_scanned: !lambda 'return id(tag_name).state.c_str();'
+
+script:
+  - id: accensione_relay12
+    then:
+      - switch.turn_on: relay2
+      - delay: 2000ms
+      - switch.turn_on: relay1
+
+  - id: accensione_relay1
+    then:
+      - switch.turn_on: relay1
+
+  - id: accensione_relay2
+    then:
+      - switch.turn_on: relay2
