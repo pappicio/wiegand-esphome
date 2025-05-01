@@ -9,8 +9,6 @@ esp32:
   variant: ESP32S2
   framework:
     type: arduino
-    version: 2.0.6
-    platform_version: 5.3.0
 #esp32:
 #  board: esp32-c3-devkitm-1
 #  framework:
@@ -31,7 +29,7 @@ logger:
     number: ERROR
     sensor: ERROR
     ultrasonic.sensor: ERROR
-
+    wiegand: WARN
 # Enable Home Assistant API
 api:
 
@@ -64,16 +62,13 @@ wifi:
 captive_portal:
  
 #########################################################################
-#########################################################################
 web_server:
   version: 3
   auth:
     username: !secret web_server_username
     password: !secret web_server_password
 #########################################################################
-#########################################################################
 
-#########################################################################
 text_sensor:
   - platform: wifi_info
     ssid:
@@ -88,10 +83,6 @@ text_sensor:
     lambda: |-
       int seconds = (id(uptimex).state);
       String days = String(seconds / (24 * 3600));
-      //if (days.length() == 1)
-      //{
-      //days="0" + days;
-      //}
       seconds = seconds % (24 * 3600); 
       String hours = String(seconds / 3600);
       if (hours.length() == 1)
@@ -204,6 +195,7 @@ text_sensor:
     name: "Ultima Password non valida"
     id: last_unauthorized_keypad_code_sensor
     update_interval: never
+    icon: "mdi:lock-alert"
     web_server:
       sorting_weight: 50
 
@@ -211,21 +203,45 @@ text_sensor:
     name: "Ultimo TAG o Impronta non valido"
     id: last_unauthorized_tag_code_sensor
     update_interval: never
+    icon: "mdi:fingerprint-off"
     web_server:
       sorting_weight: 51
 
   - platform: template
     id: user_name_sensor
-    name: "User Name"
+    name: "Ultimo accesso"
     icon: "mdi:account"
     web_server:
       sorting_weight: 53
-      
+
+  - platform: template
+    id: user_name_sensor2
+    name: "User Name2"
+    internal: True
+
+    web_server:
+      sorting_weight: 53
   - platform: template
     internal: True
     name: "Tag Riconosciuto"
     id: tag_name
-     
+  
+  - platform: template
+    name: "Formatted Counter"
+    id: formatted_counter_sensor
+    internal: true
+    lambda: |-
+      static int counter = 0;
+      counter++;
+      if (counter > 999999999) {
+        counter = 0;
+      }
+
+      char buffer[16];
+      sprintf(buffer, "id: %09d", counter);
+      return std::string(buffer);
+    update_interval: 100ms  # Ogni 100 ms
+    icon: "mdi:numeric"
 #########################################################################
 sensor:
   - platform: wifi_signal
@@ -313,11 +329,7 @@ globals:
   - id: unauthorized_tags
     type: std::vector<std::string>
     initial_value: ""
-    
   
-#########################################################################
-  
- #########################################################################
   - id: last_tag
     type: uint64_t
     restore_value: True
@@ -497,9 +509,9 @@ key_collector:
             //////////////////////////////////////////////////////////////////
             // Mappa dei codici validi e relativa azione (relay)
             std::map<std::string, std::pair<std::string, int>> codici_validi = {
-              {"1111111111", {"Pwd GLOBALE", 12}},
-              {"2222222222", {"Pwd CANCELLO", 1}},
-              {"3333333333", {"Pwd PORTONE", 2}}
+              {"111111111", {"Pwd GLOBALE", 12}},
+              {"222222222", {"Pwd CANCELLO", 1}},
+              {"333333333", {"Pwd PORTONE", 2}}
             };
             //////////////////////////////////////////////////////////////////
 
@@ -508,7 +520,7 @@ key_collector:
               codice_valido = true;
               user_name = it->second.first;
               relay = it->second.second;
-
+              id(user_name_sensor2)->publish_state(user_name);
               ESP_LOGI("ACCESSO", "Password VALIDA: %s", user_name.c_str());
 
               id(keypad_code_history).push_back(user_name);
@@ -525,12 +537,18 @@ key_collector:
               }
 
               id(keypad_codes_sensor)->publish_state(codes_concatenati);
-              id(user_name_sensor)->publish_state(user_name);
+              //id(user_name_sensor)->publish_state(user_name);
+              std::string counter = id(formatted_counter_sensor)->state.c_str();
+              // Combina il user_name con il counter formattato
+              std::string combined = user_name + " (" + counter + ")";
+              id(user_name_sensor)->publish_state(combined);
+
             } else {
               codice_valido = false;
               ESP_LOGW("ACCESSO", "Password NON valida: %s", code.c_str());
               user_name = x.c_str();
-              id(user_name_sensor)->publish_state(user_name);
+              id(user_name_sensor2)->publish_state(user_name);
+              //id(user_name_sensor)->publish_state("<" + user_name + ">");
               id(unauthorized_keypad_codes).push_back(code);
               if (id(unauthorized_keypad_codes).size() > 24) {
                 id(unauthorized_keypad_codes).erase(id(unauthorized_keypad_codes).begin());
@@ -545,7 +563,10 @@ key_collector:
               }
 
               id(unauthorized_keypad_codes_sensor)->publish_state(unauthorized_codes_concatenati);
-              id(last_unauthorized_keypad_code_sensor)->publish_state(code);
+              std::string counter = id(formatted_counter_sensor)->state.c_str();
+              // Combina il user_name con il counter formattato
+              std::string combined = code + " (" + counter + ")";
+              id(last_unauthorized_keypad_code_sensor)->publish_state(combined);
             }
 
             // Attiva i relay SOLO se la tastiera è abilitata
@@ -580,23 +601,25 @@ wiegand:
 
           // === Mappe impronte ===
           std::map<uint64_t, std::pair<std::string, int>> impronte = {
-            {121212121, {"Imp 1", 12}},
-            {232323232, {"Imp 2", 12}},
-            {343434343, {"Imp 3", 12}},
-            {454545454, {"Imp 4", 12}},
-            {565656565, {"Imp 5", 12}},
-            {676767676, {"Imp 6", 12}},
-            {787878787, {"Imp 7", 12}},
-            {989898989, {"Imp 8", 12}}
+            {121212211, {"Imp 11",   12}},
+            {212121212, {"Imp 12",   12}},
+            {232323232, {"Imp 13",   12}},
+            {323232323, {"Imp 14",   12}},
+            {454545454, {"Imp 21",   12}},
+            {545454545, {"Imp 22",   12}},
+            {656565656, {"Imp 23",   12}},
+            {565656565, {"Imp 24",   12}},
+            {676767676, {"Imp 31",   12}},
+            {767676767, {"Imp 32",   12}}
           };
 
           // === Mappe badge ===
           std::map<uint64_t, std::pair<std::string, int>> badge = {
-            {133311122,  {"Badge 1",       12}},
-            {111222333,  {"Badge 2",       12}},
-            {333444555,  {"Badge 3",       12}},
-            {555444333,  {"Badge 11",      12}},
-            {123456789,  {"Badge 22",      12}}
+            {509791345,  {"Badge 1", 12}},
+            {854418574,  {"Badge 2", 12}},
+            {851971486,  {"Badge 3", 12}},
+            {2910431538, {"Badge 1", 12}}
+
           };
 
           bool autorizzato = false;
@@ -607,6 +630,11 @@ wiegand:
             name = impronte[tag].first;
             relay = impronte[tag].second;
             autorizzato = true;
+            std::string counter = id(formatted_counter_sensor)->state.c_str();
+            // Combina il user_name con il counter formattato
+            std::string combined = name + " (" + counter + ")";
+            id(user_name_sensor)->publish_state(combined);
+
             ESP_LOGI("ACCESSO", "Impronta riconosciuta: %s", name.c_str());
 
             id(fingerprint_history).push_back(name);
@@ -627,6 +655,12 @@ wiegand:
             name = badge[tag].first;
             relay = badge[tag].second;
             autorizzato = true;
+            //id(user_name_sensor)->publish_state(name);
+            std::string counter = id(formatted_counter_sensor)->state.c_str();
+            // Combina il user_name con il counter formattato
+            std::string combined = name + " (" + counter + ")";
+            id(user_name_sensor)->publish_state(combined);
+
             ESP_LOGI("ACCESSO", "Badge riconosciuto: %s", name.c_str());
 
             id(tag_history).push_back(name);
@@ -659,7 +693,10 @@ wiegand:
             if (!unauthorized_tags_str.empty()) unauthorized_tags_str.erase(unauthorized_tags_str.size() - 3);
 
             id(unauthorized_tags_sensor)->publish_state(unauthorized_tags_str);
-            id(last_unauthorized_tag_code_sensor).publish_state(x.c_str());
+            std::string counter = id(formatted_counter_sensor)->state.c_str();
+            // Combina il user_name con il counter formattato
+            std::string combined = x + " (" + counter + ")";
+            id(last_unauthorized_tag_code_sensor).publish_state(combined);
           }
 
           // Aggiorna variabile globale con il nome identificato
