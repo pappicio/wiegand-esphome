@@ -1,21 +1,28 @@
-
 esphome:
-  name: "apriporte-wiegand"
-  friendly_name: apriporte-wiegand
+  name: apriporte-wiegand
+  friendly_name: apriporte wiegand
+  name_add_mac_suffix: false
  
+################################################################
+esp32:
+  board: lolin_s2_mini
+  variant: ESP32S2
+  framework:
+    type: arduino
+    version: 2.0.6
+    platform_version: 5.3.0
+#esp32:
+#  board: esp32-c3-devkitm-1
+#  framework:
+#    type: arduino
+
 ################################################################
 preferences:
   flash_write_interval: 1sec
 ################################################################
 
-#esp32:
-#  board: esp32-c3-devkitm-1
-#  framework:
-#    type: arduino
-  
-esp8266:
-  board: esp01_1m
-  restore_from_flash: true
+
+
  
 logger:
   level: debug
@@ -43,8 +50,8 @@ wifi:
     - password: !secret wifi_password4
     - ssid: peppe2
     - password: !secret wifi_password2
-    - ssid: peppe6
-    - password: !secret wifi_password6
+    - ssid: peppe1
+    - password: !secret wifi_password1
   manual_ip:
     static_ip: 192.168.1.79
     gateway: 192.168.1.1
@@ -57,13 +64,16 @@ wifi:
 captive_portal:
  
 #########################################################################
+#########################################################################
 web_server:
   version: 3
   auth:
     username: !secret web_server_username
     password: !secret web_server_password
 #########################################################################
+#########################################################################
 
+#########################################################################
 text_sensor:
   - platform: wifi_info
     ssid:
@@ -101,6 +111,7 @@ text_sensor:
       }
       return { (days +" g; " + hours +" h " + minutes +" m e "+ second +" s").c_str() };
       //return { (String(days) +"g " + String(hours) +"h:" + String(minutes) +"m:"+ String(seconds) +"s").c_str() };
+ 
     icon: mdi:clock-start
     update_interval: 5s
 
@@ -147,6 +158,8 @@ text_sensor:
     update_interval: 5s
     icon: mdi:fingerprint
  
+
+
   # Text sensor per le password non autorizzate
   - platform: template
     name: "Password Non Autorizzate"
@@ -185,6 +198,8 @@ text_sensor:
     update_interval: 5s
     icon: mdi:account-off
 
+
+
   - platform: template
     name: "Ultima Password non valida"
     id: last_unauthorized_keypad_code_sensor
@@ -196,45 +211,21 @@ text_sensor:
     name: "Ultimo TAG o Impronta non valido"
     id: last_unauthorized_tag_code_sensor
     update_interval: never
-    icon: "mdi:fingerprint-off"
     web_server:
       sorting_weight: 51
 
   - platform: template
     id: user_name_sensor
-    name: "Ultimo accesso"
+    name: "User Name"
     icon: "mdi:account"
     web_server:
       sorting_weight: 53
-
-  - platform: template
-    id: user_name_sensor2
-    name: "User Name2"
-    internal: True
-
-    web_server:
-      sorting_weight: 53
+      
   - platform: template
     internal: True
     name: "Tag Riconosciuto"
     id: tag_name
-  
-  - platform: template
-    name: "Formatted Counter"
-    id: formatted_counter_sensor
-    internal: true
-    lambda: |-
-      static int counter = 0;
-      counter++;
-      if (counter > 999999999) {
-        counter = 0;
-      }
-
-      char buffer[16];
-      sprintf(buffer, "id: %09d", counter);
-      return std::string(buffer);
-    update_interval: 100ms  # Ogni 100 ms
-    icon: "mdi:numeric"
+     
 #########################################################################
 sensor:
   - platform: wifi_signal
@@ -250,7 +241,6 @@ sensor:
     update_interval: 5s
 # Usa un output GPIO con id "led_builtin"
  
-
 binary_sensor:
   - platform: template
     name: "Apertura Valida"
@@ -260,14 +250,46 @@ binary_sensor:
     lambda: |-
       return id(apertura_valida);
 
+  - platform: gpio
+    pin:
+      number: GPIO36
+      mode: INPUT_PULLUP
+    id: tamper_gpio
+    name: pin tamper
+    internal: true
+    filters:
+      - delayed_on: 100ms   # Filtra i falsi positivi quando il tamper è attivato
+      - delayed_off: 100ms  # Filtra i falsi positivi quando il tamper è disattivato
+    on_press:
+      then:
+        - lambda: |-
+            id(tamper_state) = true;
+            id(tamper_output).publish_state(true);
+    on_release:  # Tamper OK (collegato = LOW)
+      then:
+        - lambda: |-
+            // NON fare nulla quando è OK
+            ESP_LOGD("tamper", "Tamper OK");
+
+
+  - platform: template
+    name: "Tamper in Allarme"
+    id: tamper_output
+    device_class: safety
+    lambda: |-
+      return id(tamper_state);
+
 globals:
+
   - id: apertura_valida
     type: bool
     initial_value: 'false'  # Inizialmente il codice non è valido
 
+
   - id: last_formatted_code
     type: std::string
     initial_value: ""
+
 
   - id: fingerprint_history
     type: std::vector<std::string>
@@ -281,6 +303,7 @@ globals:
     type: std::vector<std::string>
     initial_value: ""
  
+
   # Aggiunta lista di password non autorizzate
   - id: unauthorized_keypad_codes
     type: std::vector<std::string>
@@ -290,7 +313,11 @@ globals:
   - id: unauthorized_tags
     type: std::vector<std::string>
     initial_value: ""
+    
   
+#########################################################################
+  
+ #########################################################################
   - id: last_tag
     type: uint64_t
     restore_value: True
@@ -301,23 +328,30 @@ globals:
     restore_value: no
     initial_value: 'false'
 
-output:
-  - platform: gpio
-    pin:
-      number: GPIO2
-      inverted: true
-    id: led_builtin  # ID dell'output come richiesto
+  - id: tamper_state
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+    
+#output:
+#  - platform: gpio
+#    pin:
+#      number: GPIO15
+#      inverted: true
+#    id: led_builtin  # ID dell'output come richiesto
+
 
 interval:
   - interval: 1s
     then:
-      - lambda: |-
-          id(led_state) = !id(led_state);
-          if (id(led_state)) {
-            id(led_builtin).turn_on();
-          } else {
-            id(led_builtin).turn_off();
-          }
+#      - lambda: |-
+#          id(led_state) = !id(led_state);
+#          if (id(led_state)) {
+#            id(led_builtin).turn_off();
+#          } else {
+#            id(led_builtin).turn_off();
+#          }
+
 
 switch:
   - platform: template
@@ -335,6 +369,7 @@ switch:
         - delay: 4s
         - switch.turn_off: portone_cancello
 
+
   - platform: template
     internal: false
     restore_mode: ALWAYS_OFF
@@ -350,10 +385,11 @@ switch:
         - delay: 1s
         - switch.turn_off: spesa_da_prendere
 
+
   - platform: gpio
     id: relay1
     pin: 
-      number: GPIO4
+      number: GPIO38
       inverted: true
       mode: 
         output: True
@@ -372,11 +408,10 @@ switch:
       - globals.set:
           id: apertura_valida
           value: 'false'
-
   - platform: gpio
     id: relay2
     pin: 
-      number: GPIO5
+      number: GPIO37
       inverted: true
       mode: 
         output: True
@@ -426,7 +461,20 @@ switch:
           id(user_name_sensor).publish_state("");
       - delay: 500ms
       - switch.turn_off: clear_history_button
+ 
 
+
+  - platform: template
+    id: resetta_tamper
+    name: "Reset Tamper"
+    turn_on_action:
+      then:
+        - lambda: |-
+            id(tamper_state) = false;
+            id(tamper_output).publish_state(false);
+            id(resetta_tamper).turn_off();
+            id(resetta_tamper).publish_state(false);
+ 
 key_collector:
   - id: pincode_reader
     source_id: mykeypad
@@ -437,7 +485,7 @@ key_collector:
     clear_keys: "*"
     allowed_keys: "0123456789"
     timeout: 5s
-   on_result:
+    on_result:
       then:
         - lambda: |-
             std::string code = x;
@@ -449,9 +497,9 @@ key_collector:
             //////////////////////////////////////////////////////////////////
             // Mappa dei codici validi e relativa azione (relay)
             std::map<std::string, std::pair<std::string, int>> codici_validi = {
-               {"121212133", {"Pwd GLOBALE", 12}}, // pilota relay 1 e 2
-               {"111111221", {"Pwd CANCELLO", 1}}, // pilota relay 1 
-               {"222221122", {"Pwd PORTONE",  2}}  // pilota relay 2
+              {"1111111111", {"Pwd GLOBALE", 12}},
+              {"2222222222", {"Pwd CANCELLO", 1}},
+              {"3333333333", {"Pwd PORTONE", 2}}
             };
             //////////////////////////////////////////////////////////////////
 
@@ -460,7 +508,7 @@ key_collector:
               codice_valido = true;
               user_name = it->second.first;
               relay = it->second.second;
-              id(user_name_sensor2)->publish_state(user_name);
+
               ESP_LOGI("ACCESSO", "Password VALIDA: %s", user_name.c_str());
 
               id(keypad_code_history).push_back(user_name);
@@ -477,18 +525,12 @@ key_collector:
               }
 
               id(keypad_codes_sensor)->publish_state(codes_concatenati);
-              //id(user_name_sensor)->publish_state(user_name);
-              std::string counter = id(formatted_counter_sensor)->state.c_str();
-              // Combina il user_name con il counter formattato
-              std::string combined = user_name + " (" + counter + ")";
-              id(user_name_sensor)->publish_state(combined);
-
+              id(user_name_sensor)->publish_state(user_name);
             } else {
               codice_valido = false;
               ESP_LOGW("ACCESSO", "Password NON valida: %s", code.c_str());
               user_name = x.c_str();
-              id(user_name_sensor2)->publish_state(user_name);
-              //id(user_name_sensor)->publish_state("<" + user_name + ">");
+              id(user_name_sensor)->publish_state(user_name);
               id(unauthorized_keypad_codes).push_back(code);
               if (id(unauthorized_keypad_codes).size() > 24) {
                 id(unauthorized_keypad_codes).erase(id(unauthorized_keypad_codes).begin());
@@ -503,28 +545,34 @@ key_collector:
               }
 
               id(unauthorized_keypad_codes_sensor)->publish_state(unauthorized_codes_concatenati);
-              std::string counter = id(formatted_counter_sensor)->state.c_str();
-              // Combina il user_name con il counter formattato
-              std::string combined = code + " (" + counter + ")";
-              id(last_unauthorized_keypad_code_sensor)->publish_state(combined);
+              id(last_unauthorized_keypad_code_sensor)->publish_state(code);
             }
 
             // Attiva i relay SOLO se la tastiera è abilitata
             if (id(tag_scan_enabled).state) {
-              if (codice_valido) {
-                if (relay == 1) id(accensione_relay1)->execute();
-                else if (relay == 2) id(accensione_relay2)->execute();
-                else if (relay == 12) id(accensione_relay12)->execute();
+              if (id(tamper_state) == true) {
+                ESP_LOGW("TAMPER", "Tastiera DISABILITATA!!! TAMPER IN ALLARME!!!");
+              } else {
+                if (codice_valido) {
+                  if (relay == 1) id(accensione_relay1)->execute();
+                  else if (relay == 2) id(accensione_relay2)->execute();
+                  else if (relay == 12) id(accensione_relay12)->execute();
+                }
               }
             } else {
               ESP_LOGI("TAG", "Tastiera DISABILITATA");
             }
-        - homeassistant.tag_scanned: !lambda 'return id(user_name_sensor2).state.c_str();'
-     
+
+        - homeassistant.tag_scanned: !lambda 'return id(user_name_sensor).state.c_str();'
+
+                
+                
+                
+#on_raw:
 wiegand:
   - id: mykeypad
-    d0: GPIO13
-    d1: GPIO12
+    d0: GPIO40
+    d1: GPIO39
     on_tag:
       - lambda: |-
           uint64_t tag = std::stoull(x.c_str());
@@ -532,22 +580,23 @@ wiegand:
 
           // === Mappe impronte ===
           std::map<uint64_t, std::pair<std::string, int>> impronte = {
-            {011111111, {"Imp 11", 12}}, // pilota relay 1 e 2
-            {022222222, {"Imp 12", 12}}, // pilota relay 1 e 2
-            {033333333, {"Imp 13", 12}}, // pilota relay 1 e 2
-            {044444444, {"Imp 14", 12}}, // pilota relay 1 e 2
-            {111111111, {"Imp 21", 12}}, // pilota relay 1 e 2
-            {122222222, {"Imp 22", 12}}, // pilota relay 1 e 2
-            {133333333, {"Imp 23", 12}}, // pilota relay 1 e 2
-            {311111111, {"Imp 24", 12}}  // pilota relay 1 e 2
+            {121212121, {"Imp Giuseppe1", 12}},
+            {232323232, {"Imp Giuseppe2", 12}},
+            {343434343, {"Imp Giuseppe3", 12}},
+            {454545454, {"Imp Giuseppe4", 12}},
+            {565656565, {"Imp Desy1", 12}},
+            {676767676, {"Imp Desy2", 12}},
+            {787878787, {"Imp Desy3", 12}},
+            {989898989, {"Imp Desy4", 12}}
           };
 
           // === Mappe badge ===
           std::map<uint64_t, std::pair<std::string, int>> badge = {
-            {566666666,  {"Badge 1",   12}}, // pilota relay 1 e 2
-            {577777777,  {"Badge 2",   12}}, // pilota relay 1 e 2
-            {688888888,  {"Badge 3",   12}}, // pilota relay 1 e 2
-            {699999999,  {"Badge ATe", 12}}  // pilota relay 1 e 2
+            {133311122,  {"Badge Maria",    12}},
+            {111222333,  {"Badge Desiree",  12}},
+            {333444555,  {"Badge Giuseppe", 12}},
+            {555444333,  {"Badge ATe",      12}},
+            {123456789,  {"Badge AZZ",      12}}
           };
 
           bool autorizzato = false;
@@ -558,12 +607,6 @@ wiegand:
             name = impronte[tag].first;
             relay = impronte[tag].second;
             autorizzato = true;
-            //id(user_name_sensor)->publish_state(name);
-            std::string counter = id(formatted_counter_sensor)->state.c_str();
-            // Combina il user_name con il counter formattato
-            std::string combined = name + " (" + counter + ")";
-            id(user_name_sensor)->publish_state(combined);
-
             ESP_LOGI("ACCESSO", "Impronta riconosciuta: %s", name.c_str());
 
             id(fingerprint_history).push_back(name);
@@ -584,12 +627,6 @@ wiegand:
             name = badge[tag].first;
             relay = badge[tag].second;
             autorizzato = true;
-            //id(user_name_sensor)->publish_state(name);
-            std::string counter = id(formatted_counter_sensor)->state.c_str();
-            // Combina il user_name con il counter formattato
-            std::string combined = name + " (" + counter + ")";
-            id(user_name_sensor)->publish_state(combined);
-
             ESP_LOGI("ACCESSO", "Badge riconosciuto: %s", name.c_str());
 
             id(tag_history).push_back(name);
@@ -610,7 +647,6 @@ wiegand:
             autorizzato = false;
             ESP_LOGI("ACCESSO", "Tag o impronta NON autorizzato!");
             name = x.c_str();
-            //id(user_name_sensor)->publish_state("<" + name + ">");
             id(unauthorized_tags).push_back(x);
             if (id(unauthorized_tags).size() > 24) {
               id(unauthorized_tags).erase(id(unauthorized_tags).begin());
@@ -623,27 +659,30 @@ wiegand:
             if (!unauthorized_tags_str.empty()) unauthorized_tags_str.erase(unauthorized_tags_str.size() - 3);
 
             id(unauthorized_tags_sensor)->publish_state(unauthorized_tags_str);
-            std::string counter = id(formatted_counter_sensor)->state.c_str();
-            // Combina il user_name con il counter formattato
-            std::string combined = x + " (" + counter + ")";
-            id(last_unauthorized_tag_code_sensor).publish_state(combined);
+            id(last_unauthorized_tag_code_sensor).publish_state(x.c_str());
           }
 
           // Aggiorna variabile globale con il nome identificato
           id(tag_name).publish_state(name);
 
           // === Attiva relè SOLO se tastiera abilitata ===
-
+          // === e NON IN ALLARME TAMPER ===
           if (id(tag_scan_enabled).state) {
-            if (autorizzato) {
-              if (relay == 1) id(accensione_relay1)->execute();
-              else if (relay == 2) id(accensione_relay2)->execute();
-              else if (relay == 12) id(accensione_relay12)->execute();
+            if (id(tamper_state) == true) {
+              ESP_LOGW("TAMPER", "Tastiera DISABILITATA!!! TAMPER IN ALLARME!!!");
+            } else {
+              if (autorizzato) {
+                if (relay == 1) id(accensione_relay1)->execute();
+                else if (relay == 2) id(accensione_relay2)->execute();
+                else if (relay == 12) id(accensione_relay12)->execute();
+              }
             }
           } else {
             ESP_LOGI("TAG", "Tastiera DISABILITATA");
           }
+
       - homeassistant.tag_scanned: !lambda 'return id(tag_name).state.c_str();'
+
 
 script:
   - id: accensione_relay12
@@ -656,6 +695,8 @@ script:
     then:
       - switch.turn_on: relay1
 
+
   - id: accensione_relay2
     then:
       - switch.turn_on: relay2
+
