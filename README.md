@@ -4,12 +4,10 @@ tastiera wiegand (ce ne sono milioni online ma uso questa) bluetooth ma con hub 
 
 
 la tastiera che ho su è questa: 
-
 https://it.aliexpress.com/item/1005007498553229.html
 
 
 esp32 s2 mini: 
-
 https://it.aliexpress.com/item/1005006217896066.html
 
 
