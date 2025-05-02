@@ -5,7 +5,7 @@ tastiera wiegand (ce ne sono milioni online ma uso questa) bluetooth ma con hub 
 
 la tastiera che ho su è questa: 
 
-https://it.aliexpress.com/item/1005007498553229.html?spm=a2g0o.order_list.order_list_main.123.1efe3696qhH1F7&gatewayAdapt=glo2ita
+https://it.aliexpress.com/item/1005007498553229.html
 
 
 esp32 s2 mini: 
