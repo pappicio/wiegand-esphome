@@ -26,7 +26,9 @@ https://it.aliexpress.com/item/1005008233825861.html
 
 e per evitare (successivamente pero' anche senza, i pin esp32 supportano i 5v, ma se si puo, meglio essere precisi) uno shifter 4 canali da 5v a 3.3, ne ho utilizzati, ovviamente solo 2 dei 4 canali per i 2 fili wiegand (D0 e D1)
 
-https://it.aliexpress.com/item/32612366630.html (questo è gia a 2 canali, ottimo, ma ne aveco qualcuno a 4, riciclo!!!)
+https://it.aliexpress.com/item/32612366630.html 
+
+(questo è gia a 2 canali, ottimo, ma ne aveco qualcuno a 4, riciclo!!!)
 
 
 
