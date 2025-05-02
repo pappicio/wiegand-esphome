@@ -1,7 +1,10 @@
 progetto esphome per tastiere con impronte e rfid. tag e password, per apertura cancello/portone, il tutto con protocollo wiegand.
 ho usato: esp8266, poi un esp32 c3 super mini, al momento monto un esp32 s2 mini
 tastiera wiegand (ce ne sono milioni online ma uso questa) bluetooth ma con hub wifi va anche in wifi, ma nn serve in realta, basta il br, visto che poi gestisco tutto da codice esphome e volendo da homeassistant per automazioni
+
+
 la tastiera che ho su è questa: 
+
 https://it.aliexpress.com/item/1005007498553229.html?spm=a2g0o.order_list.order_list_main.123.1efe3696qhH1F7&gatewayAdapt=glo2ita
 
 
