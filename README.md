@@ -18,7 +18,7 @@ https://it.aliexpress.com/item/1005006217896066.html
 ovviamente gia basta e avanza (nel codice esphome trovate anche ovviamente i pin scelti)
 
 
-ho aggiunto un tamper con l'ausio di uno switch a leva: 
+ho aggiunto un tamper anti scasso nella scatola esterna, cosi in caso di tentativo manomissione, blocca la tastiera appena scatta; con l'ausio di uno switch a leva: 
 
 https://it.aliexpress.com/item/1005008233825861.html
 
