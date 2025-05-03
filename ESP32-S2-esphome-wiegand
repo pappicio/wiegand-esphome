@@ -345,24 +345,24 @@ globals:
     restore_value: true
     initial_value: 'false'
     
-#output:
-#  - platform: gpio
-#    pin:
-#      number: GPIO15
-#      inverted: true
-#    id: led_builtin  # ID dell'output come richiesto
-
+#######################################################
+output:
+  - platform: ledc
+    pin: GPIO18
+    id: led_builtin
 
 interval:
   - interval: 1s
     then:
-#      - lambda: |-
-#          id(led_state) = !id(led_state);
-#          if (id(led_state)) {
-#            id(led_builtin).turn_off();
-#          } else {
-#            id(led_builtin).turn_off();
-#          }
+      - lambda: |-
+          static bool led_state = false;
+          led_state = !led_state;
+          if (led_state) {
+            id(led_builtin).set_level(0.3);  // 30% luminosità
+          } else {
+            id(led_builtin).set_level(0.0);  // spento
+          }
+#######################################################
 
 
 switch:
