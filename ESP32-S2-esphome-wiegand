@@ -590,11 +590,29 @@ key_collector:
         - homeassistant.tag_scanned: !lambda 'return id(user_name_sensor).state.c_str();'
 
                 
-#on_raw:
+
+######################################################
+###external_components:
+###  - source: 
+###      type: local
+###      path: ./components
+###    components: [wiegandreader]
+######################################################
+
+
 wiegand:
+######################################################
+###wiegandreader:
+######################################################
+
   - id: mykeypad
     d0: GPIO40
     d1: GPIO39
+
+######################################################
+    ###lockout_time: 5000ms
+######################################################
+
     on_tag:
       - lambda: |-
           uint64_t tag = std::stoull(x.c_str());
@@ -728,16 +746,19 @@ wiegand:
 script:
   - id: accensione_relay12
     then:
-      - switch.turn_on: relay2
+      - script.execute: accensione_relay1
       - delay: 2000ms
-      - switch.turn_on: relay1
+      - script.execute: accensione_relay2
 
   - id: accensione_relay1
     then:
       - switch.turn_on: relay1
-
+      - delay: 1000ms
 
   - id: accensione_relay2
     then:
       - switch.turn_on: relay2
+      - delay: 1000ms
+
+
 
