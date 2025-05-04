@@ -575,9 +575,12 @@ key_collector:
                 ESP_LOGW("TAMPER", "Tastiera DISABILITATA!!! TAMPER IN ALLARME!!!");
               } else {
                 if (codice_valido) {
-                  if (relay == 1) id(accensione_relay1)->execute();
-                  else if (relay == 2) id(accensione_relay2)->execute();
-                  else if (relay == 12) id(accensione_relay12)->execute();
+                  if (relay == 1 && !id(accensione_relay1)->is_running())
+                    id(accensione_relay1)->execute();
+                  else if (relay == 2 && !id(accensione_relay2)->is_running())
+                    id(accensione_relay2)->execute();
+                  else if (relay == 12 && !id(accensione_relay12)->is_running())
+                    id(accensione_relay12)->execute();
                 }
               }
             } else {
@@ -586,8 +589,6 @@ key_collector:
 
         - homeassistant.tag_scanned: !lambda 'return id(user_name_sensor).state.c_str();'
 
-                
-                
                 
 #on_raw:
 wiegand:
@@ -709,9 +710,12 @@ wiegand:
               ESP_LOGW("TAMPER", "Tastiera DISABILITATA!!! TAMPER IN ALLARME!!!");
             } else {
               if (autorizzato) {
-                if (relay == 1) id(accensione_relay1)->execute();
-                else if (relay == 2) id(accensione_relay2)->execute();
-                else if (relay == 12) id(accensione_relay12)->execute();
+                if (relay == 1 && !id(accensione_relay1)->is_running())
+                  id(accensione_relay1)->execute();
+                else if (relay == 2 && !id(accensione_relay2)->is_running())
+                  id(accensione_relay2)->execute();
+                else if (relay == 12 && !id(accensione_relay12)->is_running())
+                  id(accensione_relay12)->execute();
               }
             }
           } else {
