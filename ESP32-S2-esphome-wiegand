@@ -747,7 +747,7 @@ script:
   - id: accensione_relay12
     then:
       - script.execute: accensione_relay2 #cancello
-      - delay: 2000ms
+      - delay: 2000ms # pausa di 1 secondo tra le 2 aperture... (1 per relsay + 1 di pausa tra relay1 e relay2)
       - script.execute: accensione_relay1 #portone
       - delay: 5000ms # pausa di 5 secondi tra 2 aperture...
 
