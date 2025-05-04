@@ -749,17 +749,17 @@ script:
       - script.execute: accensione_relay2 #cancello
       - delay: 2000ms
       - script.execute: accensione_relay1 #portone
-      - delay: 5000ms #pausa di 5 secondi tra 2 aperture...
+      - delay: 5000ms # pausa di 5 secondi tra 2 aperture...
 
-  - id: accensione_relay1 #apri portone
+  - id: accensione_relay1 # apri portone
     then:
       - switch.turn_on: relay1
-      - delay: 5000ms
+      - delay: 5000ms # pausa di 5 secondi tra 2 aperture...
 
   - id: accensione_relay2 # apri cancello
     then:
       - switch.turn_on: relay2
-      - delay: 5000ms
+      - delay: 5000ms # pausa di 5 secondi tra 2 aperture...
 
 
 
