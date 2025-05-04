@@ -746,19 +746,22 @@ wiegand:
 script:
   - id: accensione_relay12
     then:
-      - script.execute: accensione_relay1
+      - script.execute: accensione_relay2 #cancello
       - delay: 2000ms
-      - script.execute: accensione_relay2
+      - script.execute: accensione_relay1 #portone
+      - delay: 5000ms #pausa di 5 secondi tra 2 aperture...
 
-  - id: accensione_relay1
+  - id: accensione_relay1 #apri portone
     then:
       - switch.turn_on: relay1
-      - delay: 1000ms
+      - delay: 5000ms
 
-  - id: accensione_relay2
+  - id: accensione_relay2 # apri cancello
     then:
       - switch.turn_on: relay2
-      - delay: 1000ms
+      - delay: 5000ms
+
+
 
 
 
