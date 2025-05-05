@@ -1,5 +1,7 @@
 
 
+
+
 esphome:
   name: apriporte-wiegand
   friendly_name: apriporte wiegand
@@ -32,6 +34,7 @@ logger:
     number: ERROR
     sensor: ERROR
     ultrasonic.sensor: ERROR
+    sntp: NONE  # Impedisce che i log di sincronizzazione SNTP vengano visualizzati
     #wiegand: WARN
 
 
@@ -218,7 +221,7 @@ text_sensor:
     name: "Ultimo accesso"
     icon: "mdi:account"
     web_server:
-      sorting_weight: 53
+      sorting_weight: 52
 
   - platform: template
     id: user_name_sensor2
@@ -248,7 +251,69 @@ text_sensor:
       return std::string(buffer);
     update_interval: 100ms  # Ogni 100 ms
     icon: "mdi:numeric"
+
+
+
 #########################################################################
+  - platform: template
+    name: "Buzzer Citofono"
+    id: citofono_log
+    icon: "mdi:clipboard-text"
+    update_interval: never
+    web_server:
+      sorting_weight: 54
+
+  - platform: homeassistant
+    id: citofono_visitatore
+    entity_id: binary_sensor.citofono_visitatore
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: 'return x == "on";'
+            then:
+              - lambda: |-
+                  // Ottieni il tempo sincronizzato con SNTP
+                  auto now = id(sntp_time).now();
+                  char timestamp[20];
+                  snprintf(timestamp, sizeof(timestamp), "%02d.%02d.%02d-%02d:%02d:%02d",
+                           now.day_of_month, now.month, now.year % 100,
+                           now.hour, now.minute, now.second);
+
+                  // Se la dimensione del buffer è maggiore o uguale a 10, rimuovi la voce più vecchia
+                  if (id(citofono_log_buffer).size() >= 10) {
+                    id(citofono_log_buffer).erase(id(citofono_log_buffer).begin());
+                  }
+
+                  // Aggiungi la nuova voce al buffer
+                  id(citofono_log_buffer).push_back(std::string(timestamp));
+
+                  // Crea la stringa del log combinando tutte le voci
+                  std::string log;
+                  for (const auto& entry : id(citofono_log_buffer)) {
+                    log += entry + ",\\n";
+                  }
+
+                  // Rimuovi l'ultimo ",\n" extra
+                  if (!log.empty()) log.erase(log.size() - 3);
+
+                  // Pubblica lo stato del log
+                  id(citofono_log).publish_state(log);
+                  id(citofono_log_string) = log;
+
+#########################################################################
+
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: "Europe/Rome"  # Imposta la tua zona oraria
+    servers:
+      - "0.pool.ntp.org"
+      - "1.pool.ntp.org"
+      - "2.pool.ntp.org"
+    update_interval: 60s  # Sincronizza ogni minuto
+
+
 sensor:
   - platform: wifi_signal
     name: "Segnale WiFi"
@@ -305,6 +370,8 @@ binary_sensor:
     id: tamper_output
     device_class: safety
     icon: mdi:lock
+    web_server:
+      sorting_weight: 2
     lambda: |-
       return id(tamper_state);
 
@@ -357,7 +424,19 @@ globals:
     type: bool
     restore_value: true
     initial_value: 'false'
-    
+##########################################à
+  - id: citofono_log_string
+    type: std::string
+    restore_value: true
+    initial_value: "\"\""
+
+  - id: citofono_log_buffer
+    type: std::vector<std::string>
+    restore_value: false
+    initial_value: 'std::vector<std::string>()'
+
+
+
 #######################################################
 output:
   - platform: ledc
@@ -480,6 +559,9 @@ switch:
           id(last_unauthorized_keypad_code_sensor).publish_state("");
           id(last_unauthorized_tag_code_sensor).publish_state("");
           id(user_name_sensor).publish_state("");
+          id(citofono_log).publish_state("");
+          id(citofono_log_string) = "";
+          id(citofono_log_buffer).clear();
       - delay: 500ms
       - switch.turn_off: clear_history_button
  
@@ -612,7 +694,7 @@ external_components:
 ######################################################
 
 
-wiegand:
+###wiegand:
 ######################################################
 mywiegand:
 ######################################################
