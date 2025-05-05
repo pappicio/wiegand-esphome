@@ -1,14 +1,17 @@
+
+
 esphome:
   name: apriporte-wiegand
   friendly_name: apriporte wiegand
   name_add_mac_suffix: false
- 
+
 ################################################################
 esp32:
   board: lolin_s2_mini
   variant: ESP32S2
   framework:
     type: arduino
+    
 #esp32:
 #  board: esp32-c3-devkitm-1
 #  framework:
@@ -29,7 +32,9 @@ logger:
     number: ERROR
     sensor: ERROR
     ultrasonic.sensor: ERROR
-    wiegand: WARN
+    #wiegand: WARN
+
+
 # Enable Home Assistant API
 api:
 
@@ -63,6 +68,7 @@ captive_portal:
  
 #########################################################################
 web_server:
+  ota: false  # Puoi anche disabilitare l'OTA se non vuoi usarlo dalla pagina web di ESPHome
   version: 3
   auth:
     username: !secret web_server_username
@@ -261,11 +267,17 @@ binary_sensor:
   - platform: template
     name: "Apertura Valida"
     id: apertura_valida_sensor
+    icon: mdi:lock-open-variant
     web_server:
       sorting_weight: 1
     lambda: |-
       return id(apertura_valida);
-
+    on_press:
+      then:
+        - delay: 3000ms
+        - globals.set:
+            id: apertura_valida
+            value: 'false'
   - platform: gpio
     pin:
       number: GPIO36
@@ -292,6 +304,7 @@ binary_sensor:
     name: "Tamper in Allarme"
     id: tamper_output
     device_class: safety
+    icon: mdi:lock
     lambda: |-
       return id(tamper_state);
 
@@ -350,7 +363,7 @@ output:
   - platform: ledc
     pin: GPIO18
     id: led_builtin
-
+    frequency: 1000 Hz
 interval:
   - interval: 1s
     then:
@@ -358,7 +371,7 @@ interval:
           static bool led_state = false;
           led_state = !led_state;
           if (led_state) {
-            id(led_builtin).set_level(0.3);  // 30% luminosità
+            id(led_builtin).set_level(1.0);   
           } else {
             id(led_builtin).set_level(0.0);  // spento
           }
@@ -417,9 +430,7 @@ switch:
           value: 'true'
       - delay: 1000ms
       - switch.turn_off: relay1  # Spegne il relè dopo 1000ms
-      - globals.set:
-          id: apertura_valida
-          value: 'false'
+
   - platform: gpio
     id: relay2
     pin: 
@@ -439,9 +450,7 @@ switch:
           value: 'true'
       - delay: 1000ms
       - switch.turn_off: relay2  # Spegne il relè dopo 1000ms
-      - globals.set:
-          id: apertura_valida
-          value: 'false'
+ 
 
   - platform: template
     id: tag_scan_enabled
@@ -479,14 +488,17 @@ switch:
   - platform: template
     id: resetta_tamper
     name: "Reset Tamper"
+    icon: mdi:restart
+    web_server:
+      sorting_weight: 12
     turn_on_action:
-      then:
-        - lambda: |-
-            id(tamper_state) = false;
-            id(tamper_output).publish_state(false);
-            id(resetta_tamper).turn_off();
-            id(resetta_tamper).publish_state(false);
- 
+      - lambda: |-
+          id(tamper_state) = false;
+          id(tamper_output).publish_state(false);
+          id(resetta_tamper).turn_off();
+          id(resetta_tamper).publish_state(false);
+      - delay: 500ms
+      - switch.turn_off: resetta_tamper
 key_collector:
   - id: pincode_reader
     source_id: mykeypad
@@ -592,17 +604,17 @@ key_collector:
                 
 
 ######################################################
-###external_components:
-###  - source: 
-###      type: local
-###      path: ./components
-###    components: [wiegandreader]
+external_components:
+  - source: 
+      type: local
+      path: ./components
+    components: [mywiegand]
 ######################################################
 
 
 wiegand:
 ######################################################
-###wiegandreader:
+mywiegand:
 ######################################################
 
   - id: mykeypad
@@ -760,8 +772,3 @@ script:
     then:
       - switch.turn_on: relay2
       - delay: 5000ms # pausa di 5 secondi tra 2 aperture...
-
-
-
-
-
