@@ -1,7 +1,5 @@
 
 
-
-
 esphome:
   name: apriporte-wiegand
   friendly_name: apriporte wiegand
@@ -13,19 +11,12 @@ esp32:
   variant: ESP32S2
   framework:
     type: arduino
-    
-#esp32:
-#  board: esp32-c3-devkitm-1
-#  framework:
-#    type: arduino
+
 
 ################################################################
 preferences:
   flash_write_interval: 1sec
 ################################################################
-
-
-
  
 logger:
   level: debug
@@ -35,6 +26,7 @@ logger:
     sensor: ERROR
     ultrasonic.sensor: ERROR
     sntp: NONE  # Impedisce che i log di sincronizzazione SNTP vengano visualizzati
+
     #wiegand: WARN
 
 
@@ -280,27 +272,26 @@ text_sensor:
                            now.day_of_month, now.month, now.year % 100,
                            now.hour, now.minute, now.second);
 
-                  // Se la dimensione del buffer è maggiore o uguale a 10, rimuovi la voce più vecchia
+                  // Se la dimensione del buffer è >= 10, rimuovi la voce più vecchia
                   if (id(citofono_log_buffer).size() >= 10) {
                     id(citofono_log_buffer).erase(id(citofono_log_buffer).begin());
                   }
 
-                  // Aggiungi la nuova voce al buffer
+                  // Aggiungi nuova voce
                   id(citofono_log_buffer).push_back(std::string(timestamp));
 
-                  // Crea la stringa del log combinando tutte le voci
+                  // Costruisci la stringa del log
                   std::string log;
                   for (const auto& entry : id(citofono_log_buffer)) {
-                    log += entry + ",\\n";
+                    log += entry + ", ";
                   }
 
-                  // Rimuovi l'ultimo ",\n" extra
-                  if (!log.empty()) log.erase(log.size() - 3);
+                  // Rimuovi l'ultimo " " se presente
+                  if (!log.empty()) log.erase(log.size() - 1);
 
-                  // Pubblica lo stato del log
+                  // Pubblica il log aggiornato
                   id(citofono_log).publish_state(log);
                   id(citofono_log_string) = log;
-
 #########################################################################
 
 time:
@@ -493,7 +484,7 @@ switch:
   - platform: gpio
     id: relay1
     pin: 
-      number: GPIO38
+      number: GPIO37
       inverted: true
       mode: 
         output: True
@@ -513,7 +504,7 @@ switch:
   - platform: gpio
     id: relay2
     pin: 
-      number: GPIO37
+      number: GPIO38
       inverted: true
       mode: 
         output: True
@@ -555,7 +546,7 @@ switch:
           id(tag_history).clear();
           id(fingerprint_history).clear();
           id(keypad_code_history).clear();
-          id(homeassistant_tag_scanned).publish_state("Storico cancellato");
+          id(homeassistant_tag_scanned).publish_state("");
           id(last_unauthorized_keypad_code_sensor).publish_state("");
           id(last_unauthorized_tag_code_sensor).publish_state("");
           id(user_name_sensor).publish_state("");
