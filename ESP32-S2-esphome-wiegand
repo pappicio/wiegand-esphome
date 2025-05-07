@@ -1,5 +1,4 @@
 
-
 esphome:
   name: apriporte-wiegand
   friendly_name: apriporte wiegand
@@ -113,6 +112,18 @@ text_sensor:
     icon: mdi:badge-account
     web_server:
       sorting_weight: 20
+    lambda: |-
+      std::string result;
+      for (const auto& tag : id(tag_history)) {
+        result += tag + ", \n";
+      }
+      if (!result.empty()) {
+        result.pop_back();
+        result.pop_back();
+      }
+      return { result.c_str() };
+    update_interval: 5s
+
 
   - platform: template
     name: "Password autorizzate"
@@ -228,27 +239,77 @@ text_sensor:
     id: tag_name
   
   - platform: template
-    name: "Formatted Counter"
-    id: formatted_counter_sensor
+    name: "Time:"
     internal: true
+    id: formatted_counter_sensor
     lambda: |-
-      static int counter = 0;
-      counter++;
-      if (counter > 999999999) {
-        counter = 0;
-      }
-
-      char buffer[16];
-      sprintf(buffer, "id: %09d", counter);
+      auto now = id(sntp_time).now();
+      if (!now.is_valid()) return std::string("NO TIME");
+      char buffer[20];
+      snprintf(buffer, sizeof(buffer), "%02d.%02d-%02d:%02d:%02d",
+               now.day_of_month, now.month, now.hour, now.minute, now.second);
       return std::string(buffer);
-    update_interval: 100ms  # Ogni 100 ms
+    update_interval: 1s
     icon: "mdi:numeric"
 
 
 
 #########################################################################
-  
- 
+  - platform: template
+    name: "Buzzer Citofono"
+    id: citofono_log
+    icon: "mdi:clipboard-text"
+    update_interval: never
+    web_server:
+      sorting_weight: 54
+
+  - platform: homeassistant
+    id: citofono_visitatore
+    entity_id: binary_sensor.citofono_visitatore
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: 'return x == "on";'
+            then:
+              - lambda: |-
+                  // Ottieni il tempo sincronizzato con SNTP
+                  auto now = id(sntp_time).now();
+                  char timestamp[20];
+                  snprintf(timestamp, sizeof(timestamp), "%02d.%02d-%02d:%02d:%02d",
+                           now.day_of_month, now.month,
+                           now.hour, now.minute, now.second);
+                  // Se la dimensione del buffer è >= 10, rimuovi la voce più vecchia
+                  if (id(citofono_log_buffer).size() >= 10) {
+                    id(citofono_log_buffer).erase(id(citofono_log_buffer).begin());
+                  }
+
+                  // Aggiungi nuova voce
+                  id(citofono_log_buffer).push_back(std::string(timestamp));
+
+                  // Costruisci la stringa del log
+                  std::string log;
+                  for (const auto& entry : id(citofono_log_buffer)) {
+                    log += entry + ", ";
+                  }
+
+                  // Rimuovi l'ultimo " " se presente
+                  if (!log.empty()) log.erase(log.size() - 1);
+
+                  // Pubblica il log aggiornato
+                  id(citofono_log).publish_state(log);
+                  id(citofono_log_string) = log;
+#########################################################################
+
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: "Europe/Rome"  # Imposta la tua zona oraria
+    servers:
+      - "0.pool.ntp.org"
+      - "1.pool.ntp.org"
+      - "2.pool.ntp.org"
+    update_interval: 1h  # Sincronizza ogni minuto
   
  
 
@@ -362,6 +423,18 @@ globals:
     type: bool
     restore_value: true
     initial_value: 'false'
+##########################################à
+  - id: citofono_log_string
+    type: std::string
+    restore_value: true
+    initial_value: "\"\""
+
+  - id: citofono_log_buffer
+    type: std::vector<std::string>
+    restore_value: false
+    initial_value: 'std::vector<std::string>()'
+
+
 
 #######################################################
 output:
@@ -381,7 +454,6 @@ interval:
             id(led_builtin).set_level(0.0);  // spento
           }
 #######################################################
-
 
 switch:
   - platform: template
@@ -485,6 +557,9 @@ switch:
           id(last_unauthorized_keypad_code_sensor).publish_state("");
           id(last_unauthorized_tag_code_sensor).publish_state("");
           id(user_name_sensor).publish_state("");
+          id(citofono_log).publish_state("");
+          id(citofono_log_string) = "";
+          id(citofono_log_buffer).clear();
       - delay: 500ms
       - switch.turn_off: clear_history_button
  
@@ -504,6 +579,9 @@ switch:
           id(resetta_tamper).publish_state(false);
       - delay: 500ms
       - switch.turn_off: resetta_tamper
+
+
+
 key_collector:
   - id: pincode_reader
     source_id: mykeypad
@@ -533,6 +611,8 @@ key_collector:
             //////////////////////////////////////////////////////////////////
 
             auto it = codici_validi.find(code);
+            std::string timestamp = id(formatted_counter_sensor)->state.c_str();
+
             if (it != codici_validi.end()) {
               codice_valido = true;
               user_name = it->second.first;
@@ -540,50 +620,45 @@ key_collector:
               id(user_name_sensor2)->publish_state(user_name);
               ESP_LOGI("ACCESSO", "Password VALIDA: %s", user_name.c_str());
 
-              id(keypad_code_history).push_back(user_name);
+              std::string voce = user_name + "(" + timestamp + ")";
+              id(keypad_code_history).push_back(voce);
               if (id(keypad_code_history).size() > 24) {
                 id(keypad_code_history).erase(id(keypad_code_history).begin());
               }
 
               std::string codes_concatenati;
               for (const auto& valid_code : id(keypad_code_history)) {
-                codes_concatenati += valid_code + ", \n";
+                codes_concatenati += valid_code ;  // Modifica qui
               }
               if (!codes_concatenati.empty()) {
-                codes_concatenati.erase(codes_concatenati.size() - 3);
+                codes_concatenati.erase(codes_concatenati.size() - 1);  // Rimuove l'ultimo carattere di a capo in eccesso
               }
 
               id(keypad_codes_sensor)->publish_state(codes_concatenati);
-              //id(user_name_sensor)->publish_state(user_name);
-              std::string counter = id(formatted_counter_sensor)->state.c_str();
-              // Combina il user_name con il counter formattato
-              std::string combined = user_name + " (" + counter + ")";
+              std::string combined = user_name + "(" + timestamp + ")";
               id(user_name_sensor)->publish_state(combined);
 
             } else {
               codice_valido = false;
               ESP_LOGW("ACCESSO", "Password NON valida: %s", code.c_str());
-              user_name = x.c_str();
-              id(user_name_sensor2)->publish_state(user_name);
-              //id(user_name_sensor)->publish_state("<" + user_name + ">");
-              id(unauthorized_keypad_codes).push_back(code);
+
+              std::string voce_errata = code + "(" + timestamp + ")";
+              id(user_name_sensor2)->publish_state(code);
+              id(unauthorized_keypad_codes).push_back(voce_errata);
               if (id(unauthorized_keypad_codes).size() > 24) {
                 id(unauthorized_keypad_codes).erase(id(unauthorized_keypad_codes).begin());
               }
 
               std::string unauthorized_codes_concatenati;
               for (const auto& invalid_code : id(unauthorized_keypad_codes)) {
-                unauthorized_codes_concatenati += invalid_code + ", \n";
+                unauthorized_codes_concatenati += invalid_code;  // Modifica qui
               }
               if (!unauthorized_codes_concatenati.empty()) {
-                unauthorized_codes_concatenati.erase(unauthorized_codes_concatenati.size() - 3);
+                unauthorized_codes_concatenati.erase(unauthorized_codes_concatenati.size() - 1);  // Rimuove l'ultimo carattere di a capo in eccesso
               }
 
               id(unauthorized_keypad_codes_sensor)->publish_state(unauthorized_codes_concatenati);
-              std::string counter = id(formatted_counter_sensor)->state.c_str();
-              // Combina il user_name con il counter formattato
-              std::string combined = code + " (" + counter + ")";
-              id(last_unauthorized_keypad_code_sensor)->publish_state(combined);
+              id(last_unauthorized_keypad_code_sensor)->publish_state(voce_errata);
             }
 
             // Attiva i relay SOLO se la tastiera è abilitata
@@ -601,25 +676,23 @@ key_collector:
                 }
               }
             } else {
-              ESP_LOGI("TAG", "Tastiera DISABILITATA");
+              ESP_LOGI("KEYPAD", "Tastiera DISABILITATA");
             }
+        - homeassistant.tag_scanned: !lambda 'return id(user_name_sensor2).state.c_str();'
 
-        - homeassistant.tag_scanned: !lambda 'return id(user_name_sensor).state.c_str();'
-
-                
 
 ######################################################
-external_components:
-  - source: 
-      type: local
-      path: ./components
-    components: [mywiegand]
+#external_components:
+#  - source: 
+#      type: local
+#      path: ./components
+#    components: [mywiegand]
 ######################################################
 
 
-###wiegand:
+wiegand:
 ######################################################
-mywiegand:
+#mywiegand:
 ######################################################
 
   - id: mykeypad
@@ -629,11 +702,13 @@ mywiegand:
 ######################################################
     ###lockout_time: 5000ms
 ######################################################
-
     on_tag:
       - lambda: |-
           uint64_t tag = std::stoull(x.c_str());
           std::string name = "Unknown";
+          std::string timestamp = id(formatted_counter_sensor)->state.c_str();
+          bool autorizzato = false;
+          int relay = 0;
 
           // === Mappe impronte ===
           std::map<uint64_t, std::pair<std::string, int>> impronte = {
@@ -658,100 +733,76 @@ mywiegand:
 
           };
 
-          bool autorizzato = false;
-          int relay = 0;
-
           // Verifica impronta
           if (impronte.count(tag)) {
             name = impronte[tag].first;
             relay = impronte[tag].second;
             autorizzato = true;
-            std::string counter = id(formatted_counter_sensor)->state.c_str();
-            // Combina il user_name con il counter formattato
-            std::string combined = name + " (" + counter + ")";
+            std::string combined = name + "(" + timestamp + ")";
             id(user_name_sensor)->publish_state(combined);
-
             ESP_LOGI("ACCESSO", "Impronta riconosciuta: %s", name.c_str());
+            // Aggiorna variabile globale con il nome identificato
+            id(tag_name)->publish_state(name);
 
-            id(fingerprint_history).push_back(name);
-            if (id(fingerprint_history).size() > 24) {
+            id(fingerprint_history).push_back(combined);
+            if (id(fingerprint_history).size() > 24)
               id(fingerprint_history).erase(id(fingerprint_history).begin());
-            }
 
             std::string history;
-            for (const auto& n : id(fingerprint_history)) {
-              history += n + ", \n";
-            }
-            if (!history.empty()) history.erase(history.size() - 3);
+            for (const auto& n : id(fingerprint_history))
+              history += n ;  // Modifica qui
             id(fingerprint_scanned_sensor)->publish_state(history);
           }
-
           // Verifica badge
           else if (badge.count(tag)) {
             name = badge[tag].first;
             relay = badge[tag].second;
             autorizzato = true;
-            //id(user_name_sensor)->publish_state(name);
-            std::string counter = id(formatted_counter_sensor)->state.c_str();
-            // Combina il user_name con il counter formattato
-            std::string combined = name + " (" + counter + ")";
+            std::string combined = name + "(" + timestamp + ")";
             id(user_name_sensor)->publish_state(combined);
-
             ESP_LOGI("ACCESSO", "Badge riconosciuto: %s", name.c_str());
+            // Aggiorna variabile globale con il nome identificato
+            id(tag_name)->publish_state(name);
 
-            id(tag_history).push_back(name);
-            if (id(tag_history).size() > 24) {
+            id(tag_history).push_back(combined);
+            if (id(tag_history).size() > 24)
               id(tag_history).erase(id(tag_history).begin());
-            }
 
             std::string tag_history_str;
-            for (const auto& n : id(tag_history)) {
-              tag_history_str += n + ", \n";
-            }
-            if (!tag_history_str.empty()) tag_history_str.erase(tag_history_str.size() - 3);
+            for (const auto& n : id(tag_history))
+              tag_history_str += n ;  // Modifica qui
             id(homeassistant_tag_scanned)->publish_state(tag_history_str);
           }
-
           // Non autorizzato
           else {
             autorizzato = false;
             ESP_LOGI("ACCESSO", "Tag o impronta NON autorizzato!");
-            name = x.c_str();
-            id(unauthorized_tags).push_back(x);
-            if (id(unauthorized_tags).size() > 24) {
+            std::string combined = x + "(" + timestamp + ")";
+            id(unauthorized_tags).push_back(combined);
+            // Aggiorna variabile globale con il nome identificato
+            id(tag_name)->publish_state(x);
+            if (id(unauthorized_tags).size() > 24)
               id(unauthorized_tags).erase(id(unauthorized_tags).begin());
-            }
 
             std::string unauthorized_tags_str;
-            for (const auto& tag_str : id(unauthorized_tags)) {
-              unauthorized_tags_str += tag_str + ", \n";
-            }
-            if (!unauthorized_tags_str.empty()) unauthorized_tags_str.erase(unauthorized_tags_str.size() - 3);
-
+            for (const auto& tag_str : id(unauthorized_tags))
+              unauthorized_tags_str += tag_str;  // Modifica qui
             id(unauthorized_tags_sensor)->publish_state(unauthorized_tags_str);
-            std::string counter = id(formatted_counter_sensor)->state.c_str();
-            // Combina il user_name con il counter formattato
-            std::string combined = x + " (" + counter + ")";
-            id(last_unauthorized_tag_code_sensor).publish_state(combined);
+            id(last_unauthorized_tag_code_sensor)->publish_state(combined);   
           }
-
-          // Aggiorna variabile globale con il nome identificato
-          id(tag_name).publish_state(name);
 
           // === Attiva relè SOLO se tastiera abilitata ===
           // === e NON IN ALLARME TAMPER ===
           if (id(tag_scan_enabled).state) {
-            if (id(tamper_state) == true) {
+            if (id(tamper_state)) {
               ESP_LOGW("TAMPER", "Tastiera DISABILITATA!!! TAMPER IN ALLARME!!!");
-            } else {
-              if (autorizzato) {
-                if (relay == 1 && !id(accensione_relay1)->is_running())
-                  id(accensione_relay1)->execute();
-                else if (relay == 2 && !id(accensione_relay2)->is_running())
-                  id(accensione_relay2)->execute();
-                else if (relay == 12 && !id(accensione_relay12)->is_running())
-                  id(accensione_relay12)->execute();
-              }
+            } else if (autorizzato) {
+              if (relay == 1 && !id(accensione_relay1)->is_running())
+                id(accensione_relay1)->execute();
+              else if (relay == 2 && !id(accensione_relay2)->is_running())
+                id(accensione_relay2)->execute();
+              else if (relay == 12 && !id(accensione_relay12)->is_running())
+                id(accensione_relay12)->execute();
             }
           } else {
             ESP_LOGI("TAG", "Tastiera DISABILITATA");
@@ -759,21 +810,21 @@ mywiegand:
 
       - homeassistant.tag_scanned: !lambda 'return id(tag_name).state.c_str();'
 
-
 script:
   - id: accensione_relay12
     then:
-      - script.execute: accensione_relay2 #cancello
-      - delay: 2000ms # pausa di 1 secondo tra le 2 aperture... (1 sec. per attivazione del relay + 1 sec. di pausa tra relay1 e relay2)
-      - script.execute: accensione_relay1 #portone
-      - delay: 5000ms # pausa di 5 secondi tra 2 aperture...
+      - script.execute: accensione_relay2 # cancello
+      - delay: 2000ms
+      - script.execute: accensione_relay1 # portone
+      - delay: 3000ms # pausa di 3 secondi tra 2 aperture...
 
   - id: accensione_relay1 # apri portone
     then:
       - switch.turn_on: relay1
-      - delay: 5000ms # pausa di 5 secondi tra 2 aperture...
+      - delay: 2000ms
 
   - id: accensione_relay2 # apri cancello
     then:
       - switch.turn_on: relay2
-      - delay: 5000ms # pausa di 5 secondi tra 2 aperture...
+      - delay: 2000ms
+ 
