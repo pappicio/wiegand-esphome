@@ -8,27 +8,30 @@ triggers:
     trigger: state
 conditions:
   - condition: template
-    value_template: "{{ trigger.to_state.state not in ['', 'unknown', 'unavailable'] }}"
+    value_template: |-
+      {{ trigger.to_state.state | string | trim != '' and
+         trigger.to_state.state | string != 'unknown' and
+         trigger.to_state.state | string != 'unavailable' }}
 actions:
   - data:
       title: |-
-        {% if trigger.entity_id == 'sensor.apriporte_wiegand_ultimo_accesso' %}
+        {% set entity = trigger.entity_id %} {% if 'ultimo_accesso' in entity %}
           ✅ Accesso autorizzato
         {% else %}
           🔐 Accesso negato!
         {% endif %}
       message: >-
-        {% if trigger.entity_id == 'sensor.apriporte_wiegand_ultimo_accesso' %}
-          👤 Utente autorizzato: {{ trigger.to_state.state }}
-        {% elif trigger.entity_id ==
-        'sensor.apriporte_wiegand_ultima_password_non_valida' %}
-          ❌ Password non valida: {{ trigger.to_state.state }}
-        {% elif trigger.entity_id ==
-        'sensor.apriporte_wiegand_ultimo_tag_o_impronta_non_valido' %}
-          ❌ Badge o impronta non validi: {{ trigger.to_state.state }}
+        {% set stato = trigger.to_state.state | string | replace('_', '-') %} {%
+        if 'ultimo_accesso' in trigger.entity_id %}
+          👤 Utente autorizzato: {{ stato }}
+        {% elif 'ultima_password_non_valida' in trigger.entity_id %}
+          ❌ Password non valida: {{ stato }}
+        {% elif 'ultimo_tag_o_impronta_non_valido' in trigger.entity_id %}
+          ❌ Badge o impronta non validi: {{ stato }}
         {% else %}
-          ⚠️ Tentativo di accesso non autorizzato.
+          ⚠️ Tentativo di accesso non autorizzato: {{ stato }}
         {% endif %}
     action: notify.telegram
 mode: single
+
 
