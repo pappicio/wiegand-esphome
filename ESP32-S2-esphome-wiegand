@@ -25,7 +25,6 @@ logger:
     sensor: ERROR
     ultrasonic.sensor: ERROR
     sntp: NONE  # Impedisce che i log di sincronizzazione SNTP vengano visualizzati
-
     #wiegand: WARN
 
 
@@ -365,14 +364,58 @@ binary_sensor:
 
 
   - platform: template
-    name: "Tamper in Allarme"
+    name: "Allarme Tamper"
     id: tamper_output
     device_class: safety
+    #icon: "mdi:alert-octagon-outline"
     icon: mdi:lock
     web_server:
       sorting_weight: 2
     lambda: |-
       return id(tamper_state);
+
+
+
+
+
+####################################################################
+  - platform: gpio
+    pin:
+      number: GPIO40
+      inverted: true
+      allow_other_uses: true
+    name: "Pin D0"
+    internal: true
+    id: shared_d0
+  - platform: gpio
+    pin:
+      number: GPIO39
+      inverted: true
+      allow_other_uses: true
+    name: "Pin D1"
+    internal: true
+    id: shared_d1
+    
+  - platform: template
+    name: "Allarme segnale Wiegand"
+    icon: mdi:signal-off
+    web_server:
+      sorting_weight: 3
+    lambda: |-
+      return id(shared_d0).state || id(shared_d1).state;
+    filters:
+      - delayed_on: 3s
+      - delayed_off: 1s 
+    on_press:
+      then:
+        - lambda: |-
+            id(tamper_state) = true;
+            id(tamper_output).publish_state(true);
+######################################################################
+
+
+
+
 
 globals:
 
@@ -499,7 +542,7 @@ switch:
     restore_mode: ALWAYS_OFF
     name: "Apri Portone"
     web_server:
-      sorting_weight: 4
+      sorting_weight: 5
     icon: mdi:garage-open
     on_turn_on:
       - globals.set:
@@ -519,7 +562,7 @@ switch:
     restore_mode: ALWAYS_OFF
     name: "Apri Cancello"
     web_server:
-      sorting_weight: 5
+      sorting_weight: 6
     icon: mdi:gate
     on_turn_on:
       - globals.set:
@@ -533,7 +576,7 @@ switch:
     id: tag_scan_enabled
     name: "Abilita Tastiera"
     web_server:
-      sorting_weight: 3
+      sorting_weight: 4
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
     icon: mdi:keyboard
@@ -614,13 +657,14 @@ key_collector:
             std::string timestamp = id(formatted_counter_sensor)->state.c_str();
 
             if (it != codici_validi.end()) {
+              id(apertura_valida)=true;
               codice_valido = true;
               user_name = it->second.first;
               relay = it->second.second;
               id(user_name_sensor2)->publish_state(user_name);
               ESP_LOGI("ACCESSO", "Password VALIDA: %s", user_name.c_str());
 
-              std::string voce = user_name + "(" + timestamp + ")";
+              std::string voce = user_name + "-(" + timestamp + ")";
               id(keypad_code_history).push_back(voce);
               if (id(keypad_code_history).size() > 24) {
                 id(keypad_code_history).erase(id(keypad_code_history).begin());
@@ -635,14 +679,14 @@ key_collector:
               }
 
               id(keypad_codes_sensor)->publish_state(codes_concatenati);
-              std::string combined = user_name + "(" + timestamp + ")";
+              std::string combined = user_name + "-(" + timestamp + ")";
               id(user_name_sensor)->publish_state(combined);
 
             } else {
               codice_valido = false;
               ESP_LOGW("ACCESSO", "Password NON valida: %s", code.c_str());
 
-              std::string voce_errata = code + "(" + timestamp + ")";
+              std::string voce_errata = code + "-(" + timestamp + ")";
               id(user_name_sensor2)->publish_state(code);
               id(unauthorized_keypad_codes).push_back(voce_errata);
               if (id(unauthorized_keypad_codes).size() > 24) {
@@ -690,15 +734,19 @@ key_collector:
 ######################################################
 
 
+
+
 wiegand:
 ######################################################
 #mywiegand:
 ######################################################
-
-  - id: mykeypad
-    d0: GPIO40
-    d1: GPIO39
-
+    id: mykeypad
+    d0:
+      number: GPIO40
+      allow_other_uses: true
+    d1:
+      number: GPIO39
+      allow_other_uses: true
 ######################################################
     ###lockout_time: 5000ms
 ######################################################
@@ -735,10 +783,11 @@ wiegand:
 
           // Verifica impronta
           if (impronte.count(tag)) {
+            id(apertura_valida)=true;
             name = impronte[tag].first;
             relay = impronte[tag].second;
             autorizzato = true;
-            std::string combined = name + "(" + timestamp + ")";
+            std::string combined = name + "-(" + timestamp + ")";
             id(user_name_sensor)->publish_state(combined);
             ESP_LOGI("ACCESSO", "Impronta riconosciuta: %s", name.c_str());
             // Aggiorna variabile globale con il nome identificato
@@ -757,8 +806,9 @@ wiegand:
           else if (badge.count(tag)) {
             name = badge[tag].first;
             relay = badge[tag].second;
+            id(apertura_valida)=true;
             autorizzato = true;
-            std::string combined = name + "(" + timestamp + ")";
+            std::string combined = name + "-(" + timestamp + ")";
             id(user_name_sensor)->publish_state(combined);
             ESP_LOGI("ACCESSO", "Badge riconosciuto: %s", name.c_str());
             // Aggiorna variabile globale con il nome identificato
@@ -777,7 +827,7 @@ wiegand:
           else {
             autorizzato = false;
             ESP_LOGI("ACCESSO", "Tag o impronta NON autorizzato!");
-            std::string combined = x + "(" + timestamp + ")";
+            std::string combined = x + "-(" + timestamp + ")";
             id(unauthorized_tags).push_back(combined);
             // Aggiorna variabile globale con il nome identificato
             id(tag_name)->publish_state(x);
