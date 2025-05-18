@@ -18,7 +18,7 @@ preferences:
 ################################################################
  
 logger:
-  level: debug
+  level: INFO
   logs:
     text_sensor: error
     number: ERROR
@@ -826,7 +826,8 @@ wiegand:
           // Non autorizzato
           else {
             autorizzato = false;
-            ESP_LOGI("ACCESSO", "Tag o impronta NON autorizzato!");
+            //ESP_LOGI("ACCESSO", "Tag o impronta NON autorizzato!");
+            ESP_LOGI("ACCESSO", "Tag NON autorizzato: %s", x.c_str());
             std::string combined = x + "-(" + timestamp + ")";
             id(unauthorized_tags).push_back(combined);
             // Aggiorna variabile globale con il nome identificato
