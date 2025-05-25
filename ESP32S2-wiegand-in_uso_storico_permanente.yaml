@@ -15,7 +15,9 @@ esphome:
       - script.execute: restore_unauthorized_tag_history
       - script.execute: restore_citofono_log
       - script.execute: restore_last_records
-
+      - delay: 30s
+      - lambda: |-
+          id(esp32_stabilizzato_flag) = true;
 ################################################################
 esp32:
   board: lolin_s2_mini
@@ -383,6 +385,16 @@ binary_sensor:
         - lambda: |-
             id(tamper_state) = true;
             id(tamper_output).publish_state(true);
+
+
+  - platform: template
+    name: "ESP32 Stabilizzato"
+    id: esp32_stabilizzato
+    lambda: |-
+      return id(esp32_stabilizzato_flag);
+    icon: mdi:check-network-outline
+    web_server:
+      sorting_weight: 4
 ######################################################################
   - platform: status
     name: "Stato ESP"
@@ -393,6 +405,10 @@ binary_sensor:
 
 
 globals:
+  - id: esp32_stabilizzato_flag
+    type: bool
+    restore_value: false
+    initial_value: 'false'
 
   - id: apertura_valida
     type: bool
@@ -524,7 +540,7 @@ output:
 
 
 interval:
-  - interval: 1s
+  - interval: 2s
     then:
       - lambda: |-
           static bool led_state = false;
@@ -606,7 +622,7 @@ switch:
     restore_mode: ALWAYS_OFF
     name: "Apri Portone"
     web_server:
-      sorting_weight: 5
+      sorting_weight: 6
     icon: mdi:garage-open
     on_turn_on:
       - globals.set:
@@ -626,7 +642,7 @@ switch:
     restore_mode: ALWAYS_OFF
     name: "Apri Cancello"
     web_server:
-      sorting_weight: 6
+      sorting_weight: 7
     icon: mdi:gate
     on_turn_on:
       - globals.set:
@@ -639,7 +655,7 @@ switch:
     id: tag_scan_enabled
     name: "Abilita Tastiera"
     web_server:
-      sorting_weight: 4
+      sorting_weight: 5
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
     icon: mdi:keyboard
@@ -1246,5 +1262,6 @@ script:
           id(last_unauthorized_keypad_code_sensor).publish_state(id(last_bad_password_storage));
           id(last_unauthorized_tag_code_sensor).publish_state(id(last_bad_tag_storage));
           id(user_name_sensor).publish_state(id(last_user_access_storage));
+
 
 
