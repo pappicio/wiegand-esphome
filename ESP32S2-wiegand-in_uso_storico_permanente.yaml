@@ -113,15 +113,12 @@ text_sensor:
       sorting_weight: 20
     lambda: |-
       std::string raw = id(badge_autorizzati_storage);
-      std::string formatted;
-      for (size_t i = 0; i < raw.length(); ++i) {
-        if (raw[i] == ',') {
-          formatted += ",\n";
-        } else {
-          formatted += raw[i];
-        }
+      size_t pos = 0;
+      while ((pos = raw.find(",", pos)) != std::string::npos) {
+        raw.replace(pos, 1, ",\n");
+        pos += 2;
       }
-      return formatted;
+      return raw;
     update_interval: 5s
 
   - platform: template
@@ -132,15 +129,12 @@ text_sensor:
       sorting_weight: 21
     lambda: |-
       std::string raw = id(password_autorizzate_storage);
-      std::string formatted;
-      for (size_t i = 0; i < raw.length(); ++i) {
-        if (raw[i] == ',') {
-          formatted += ",\n";
-        } else {
-          formatted += raw[i];
-        }
+      size_t pos = 0;
+      while ((pos = raw.find(",", pos)) != std::string::npos) {
+        raw.replace(pos, 1, ",\n");
+        pos += 2;
       }
-      return formatted;
+      return raw;
     update_interval: 5s
 
   - platform: template
@@ -151,15 +145,12 @@ text_sensor:
       sorting_weight: 22
     lambda: |-
       std::string raw = id(impronte_autorizzate_storage);
-      std::string formatted;
-      for (size_t i = 0; i < raw.length(); ++i) {
-        if (raw[i] == ',') {
-          formatted += ",\n";
-        } else {
-          formatted += raw[i];
-        }
+      size_t pos = 0;
+      while ((pos = raw.find(",", pos)) != std::string::npos) {
+        raw.replace(pos, 1, ",\n");
+        pos += 2;
       }
-      return formatted;
+      return raw;
     update_interval: 5s
 
   - platform: template
@@ -170,15 +161,12 @@ text_sensor:
       sorting_weight: 23
     lambda: |-
       std::string raw = id(unauthorized_keypad_codes_storage);
-      std::string formatted;
-      for (size_t i = 0; i < raw.length(); ++i) {
-        if (raw[i] == ',') {
-          formatted += ",\n";
-        } else {
-          formatted += raw[i];
-        }
+      size_t pos = 0;
+      while ((pos = raw.find(",", pos)) != std::string::npos) {
+        raw.replace(pos, 1, ",\n");
+        pos += 2;
       }
-      return formatted;
+      return raw;
     update_interval: 5s
 
   - platform: template
@@ -189,15 +177,12 @@ text_sensor:
       sorting_weight: 24
     lambda: |-
       std::string raw = id(badge_non_autorizzati_storage);
-      std::string formatted;
-      for (size_t i = 0; i < raw.length(); ++i) {
-        if (raw[i] == ',') {
-          formatted += ",\n";
-        } else {
-          formatted += raw[i];
-        }
+      size_t pos = 0;
+      while ((pos = raw.find(",", pos)) != std::string::npos) {
+        raw.replace(pos, 1, ",\n");
+        pos += 2;
       }
-      return formatted;
+      return raw;
     update_interval: 5s
 
   - platform: template
@@ -208,16 +193,14 @@ text_sensor:
       sorting_weight: 54
     lambda: |-
       std::string raw = id(citofono_log_storage);
-      std::string formatted;
-      for (size_t i = 0; i < raw.length(); ++i) {
-        if (raw[i] == ',') {
-          formatted += ",\n";
-        } else {
-          formatted += raw[i];
-        }
+      size_t pos = 0;
+      while ((pos = raw.find(",", pos)) != std::string::npos) {
+        raw.replace(pos, 1, ",\n");
+        pos += 2;
       }
-      return formatted;
+      return raw;
     update_interval: 5s
+
     
   - platform: template
     name: "Ultima Password non valida"
