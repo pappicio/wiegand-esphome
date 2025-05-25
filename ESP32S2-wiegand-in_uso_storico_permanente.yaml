@@ -112,7 +112,16 @@ text_sensor:
     web_server:
       sorting_weight: 20
     lambda: |-
-      return id(badge_autorizzati_storage);
+      std::string raw = id(badge_autorizzati_storage);
+      std::string formatted;
+      for (size_t i = 0; i < raw.length(); ++i) {
+        if (raw[i] == ',') {
+          formatted += ",\n";
+        } else {
+          formatted += raw[i];
+        }
+      }
+      return formatted;
     update_interval: 5s
 
   - platform: template
@@ -122,7 +131,16 @@ text_sensor:
     web_server:
       sorting_weight: 21
     lambda: |-
-      return id(password_autorizzate_storage);
+      std::string raw = id(password_autorizzate_storage);
+      std::string formatted;
+      for (size_t i = 0; i < raw.length(); ++i) {
+        if (raw[i] == ',') {
+          formatted += ",\n";
+        } else {
+          formatted += raw[i];
+        }
+      }
+      return formatted;
     update_interval: 5s
 
   - platform: template
@@ -132,7 +150,16 @@ text_sensor:
     web_server:
       sorting_weight: 22
     lambda: |-
-      return id(impronte_autorizzate_storage);
+      std::string raw = id(impronte_autorizzate_storage);
+      std::string formatted;
+      for (size_t i = 0; i < raw.length(); ++i) {
+        if (raw[i] == ',') {
+          formatted += ",\n";
+        } else {
+          formatted += raw[i];
+        }
+      }
+      return formatted;
     update_interval: 5s
 
   - platform: template
@@ -142,7 +169,16 @@ text_sensor:
     web_server:
       sorting_weight: 23
     lambda: |-
-      return id(unauthorized_keypad_codes_storage);
+      std::string raw = id(unauthorized_keypad_codes_storage);
+      std::string formatted;
+      for (size_t i = 0; i < raw.length(); ++i) {
+        if (raw[i] == ',') {
+          formatted += ",\n";
+        } else {
+          formatted += raw[i];
+        }
+      }
+      return formatted;
     update_interval: 5s
 
   - platform: template
@@ -152,7 +188,16 @@ text_sensor:
     web_server:
       sorting_weight: 24
     lambda: |-
-      return id(badge_non_autorizzati_storage);
+      std::string raw = id(badge_non_autorizzati_storage);
+      std::string formatted;
+      for (size_t i = 0; i < raw.length(); ++i) {
+        if (raw[i] == ',') {
+          formatted += ",\n";
+        } else {
+          formatted += raw[i];
+        }
+      }
+      return formatted;
     update_interval: 5s
 
   - platform: template
@@ -162,9 +207,18 @@ text_sensor:
     web_server:
       sorting_weight: 54
     lambda: |-
-      return id(citofono_log_storage);
+      std::string raw = id(citofono_log_storage);
+      std::string formatted;
+      for (size_t i = 0; i < raw.length(); ++i) {
+        if (raw[i] == ',') {
+          formatted += ",\n";
+        } else {
+          formatted += raw[i];
+        }
+      }
+      return formatted;
     update_interval: 5s
-
+    
   - platform: template
     name: "Ultima Password non valida"
     id: last_unauthorized_keypad_code_sensor
