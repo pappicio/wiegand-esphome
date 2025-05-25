@@ -8,13 +8,7 @@ esphome:
   on_boot:
     priority: 600
     then:
-      - script.execute: restore_unauthorized_keypad_codes
-      - script.execute: restore_authorized_keypad_codes
-      - script.execute: restore_valid_tag_history
-      - script.execute: restore_valid_fingerprint_history
-      - script.execute: restore_unauthorized_tag_history
-      - script.execute: restore_citofono_log
-      - script.execute: restore_last_records
+      - script.execute: restore_all
       - delay: 30s
       - lambda: |-
           id(esp32_stabilizzato_flag) = true;
@@ -736,19 +730,9 @@ switch:
           id(user_name_sensor).publish_state(id(last_user_access_storage));
           id(citofono_log).publish_state("");
 
-      - script.execute: save_authorized_keypad_codes
-      - script.execute: save_valid_tag_history
-      - script.execute: save_valid_fingerprint_history
-      - script.execute: save_unauthorized_tag_history
-      - script.execute: save_unauthorized_keypad_codes
-      - script.execute: save_citofono_log
-      - script.execute: save_last_records
+      - script.execute: save_all
       - delay: 500ms
       - switch.turn_off: clear_history_button
-
- 
- 
-
 
   - platform: template
     id: resetta_tamper
@@ -760,12 +744,8 @@ switch:
       - lambda: |-
           id(tamper_state) = false;
           id(tamper_output).publish_state(false);
-          id(resetta_tamper).turn_off();
-          id(resetta_tamper).publish_state(false);
       - delay: 500ms
       - switch.turn_off: resetta_tamper
-
-
 
 key_collector:
   - id: pincode_reader
@@ -1034,10 +1014,7 @@ script:
 
  
 #########################################################
-
-
-
-
+ 
   - id: save_authorized_keypad_codes
     then:
       - lambda: |-
@@ -1054,144 +1031,20 @@ script:
 
           id(keypad_codes_sensor)->publish_state(id(password_autorizzate_storage));
 
-  - id: restore_authorized_keypad_codes
+  - id: save_citofono_log
     then:
       - lambda: |-
-          auto trim = [](std::string &s) {
-            while (!s.empty() && (s.front() == ' ' || s.front() == '\t')) s.erase(0, 1);
-            while (!s.empty() && (s.back() == ' ' || s.back() == '\t')) s.pop_back();
-          };
-
-          id(keypad_codes_sensor)->publish_state(id(password_autorizzate_storage));
-
-  - id: save_valid_tag_history
-    then:
-      - lambda: |-
-          std::string buffer;
-          for (const auto& entry : id(tag_history)) {
-            buffer += entry + ",";
-          }
-          if (!buffer.empty()) buffer.erase(buffer.size() - 1);
-          id(badge_autorizzati_storage) = buffer;
-
-  - id: restore_valid_tag_history
-    then:
-      - lambda: |-
-          auto trim = [](std::string &s) {
-            while (!s.empty() && (s.front() == ' ' || s.front() == '\t')) s.erase(0, 1);
-            while (!s.empty() && (s.back() == ' ' || s.back() == '\t')) s.pop_back();
-          };
-
-          id(tag_history).clear();
-          std::string data = id(badge_autorizzati_storage);
-          size_t start = 0;
-          while (true) {
-            size_t end = data.find(',', start);
-            std::string item;
-            if (end == std::string::npos) {
-              item = data.substr(start);
-            } else {
-              item = data.substr(start, end - start);
-            }
-            trim(item);
-            if (!item.empty()) {
-              id(tag_history).push_back(item);
-            }
-            if (end == std::string::npos) break;
-            start = end + 1;
-          }
           std::string log;
-          for (const auto& entry : id(tag_history)) {
+          for (const auto& entry : id(citofono_log_buffer)) {
             log += entry + ",";
           }
           if (!log.empty()) log.erase(log.size() - 1);
-          id(homeassistant_tag_scanned)->publish_state(log);
 
-  - id: save_valid_fingerprint_history
-    then:
-      - lambda: |-
-          std::string buffer;
-          for (const auto& entry : id(fingerprint_history)) {
-            buffer += entry + ",";
+          if (log.length() > 254) {
+            log.erase(0, log.length() - 254);
           }
-          if (!buffer.empty()) buffer.erase(buffer.size() - 1);
-          id(impronte_autorizzate_storage) = buffer;
 
-  - id: restore_valid_fingerprint_history
-    then:
-      - lambda: |-
-          auto trim = [](std::string &s) {
-            while (!s.empty() && (s.front() == ' ' || s.front() == '\t')) s.erase(0, 1);
-            while (!s.empty() && (s.back() == ' ' || s.back() == '\t')) s.pop_back();
-          };
-
-          id(fingerprint_history).clear();
-          std::string data = id(impronte_autorizzate_storage);
-          size_t start = 0;
-          while (true) {
-            size_t end = data.find(',', start);
-            std::string item;
-            if (end == std::string::npos) {
-              item = data.substr(start);
-            } else {
-              item = data.substr(start, end - start);
-            }
-            trim(item);
-            if (!item.empty()) {
-              id(fingerprint_history).push_back(item);
-            }
-            if (end == std::string::npos) break;
-            start = end + 1;
-          }
-          std::string log;
-          for (const auto& entry : id(fingerprint_history)) {
-            log += entry + ",";
-          }
-          if (!log.empty()) log.erase(log.size() - 1);
-          id(fingerprint_scanned_sensor)->publish_state(log);
-
-  - id: save_unauthorized_tag_history
-    then:
-      - lambda: |-
-          std::string buffer;
-          for (const auto& entry : id(unauthorized_tags)) {
-            buffer += entry + ",";
-          }
-          if (!buffer.empty()) buffer.erase(buffer.size() - 1);
-          id(badge_non_autorizzati_storage) = buffer;
-
-  - id: restore_unauthorized_tag_history
-    then:
-      - lambda: |-
-          auto trim = [](std::string &s) {
-            while (!s.empty() && (s.front() == ' ' || s.front() == '\t')) s.erase(0, 1);
-            while (!s.empty() && (s.back() == ' ' || s.back() == '\t')) s.pop_back();
-          };
-
-          id(unauthorized_tags).clear();
-          std::string data = id(badge_non_autorizzati_storage);
-          size_t start = 0;
-          while (true) {
-            size_t end = data.find(',', start);
-            std::string item;
-            if (end == std::string::npos) {
-              item = data.substr(start);
-            } else {
-              item = data.substr(start, end - start);
-            }
-            trim(item);
-            if (!item.empty()) {
-              id(unauthorized_tags).push_back(item);
-            }
-            if (end == std::string::npos) break;
-            start = end + 1;
-          }
-          std::string log;
-          for (const auto& entry : id(unauthorized_tags)) {
-            log += entry + ",";
-          }
-          if (!log.empty()) log.erase(log.size() - 1);
-          id(unauthorized_tags_sensor)->publish_state(log);
+          id(citofono_log_storage) = log;
 
   - id: save_unauthorized_keypad_codes
     then:
@@ -1209,7 +1062,52 @@ script:
 
           id(unauthorized_keypad_codes_sensor)->publish_state(id(unauthorized_keypad_codes_storage));
 
-  - id: restore_unauthorized_keypad_codes
+  - id: save_unauthorized_tag_history
+    then:
+      - lambda: |-
+          std::string buffer;
+          for (const auto& entry : id(unauthorized_tags)) {
+            buffer += entry + ",";
+          }
+          if (!buffer.empty()) buffer.erase(buffer.size() - 1);
+
+          if (buffer.length() > 254) {
+            buffer.erase(0, buffer.length() - 254);
+          }
+
+          id(badge_non_autorizzati_storage) = buffer;
+
+  - id: save_valid_fingerprint_history
+    then:
+      - lambda: |-
+          std::string buffer;
+          for (const auto& entry : id(fingerprint_history)) {
+            buffer += entry + ",";
+          }
+          if (!buffer.empty()) buffer.erase(buffer.size() - 1);
+
+          if (buffer.length() > 254) {
+            buffer.erase(0, buffer.length() - 254);
+          }
+
+          id(impronte_autorizzate_storage) = buffer;
+
+  - id: save_valid_tag_history
+    then:
+      - lambda: |-
+          std::string buffer;
+          for (const auto& entry : id(tag_history)) {
+            buffer += entry + ",";
+          }
+          if (!buffer.empty()) buffer.erase(buffer.size() - 1);
+
+          if (buffer.length() > 254) {
+            buffer.erase(0, buffer.length() - 254);
+          }
+
+          id(badge_autorizzati_storage) = buffer;
+
+  - id: restore_authorized_keypad_codes
     then:
       - lambda: |-
           auto trim = [](std::string &s) {
@@ -1217,40 +1115,7 @@ script:
             while (!s.empty() && (s.back() == ' ' || s.back() == '\t')) s.pop_back();
           };
 
-          id(unauthorized_keypad_codes).clear();
-          std::string data = id(unauthorized_keypad_codes_storage);
-          size_t start = 0;
-          while (true) {
-            size_t end = data.find(',', start);
-            std::string item;
-            if (end == std::string::npos) {
-              item = data.substr(start);
-            } else {
-              item = data.substr(start, end - start);
-            }
-            trim(item);
-            if (!item.empty()) {
-              id(unauthorized_keypad_codes).push_back(item);
-            }
-            if (end == std::string::npos) break;
-            start = end + 1;
-          }
-          std::string log;
-          for (const auto& entry : id(unauthorized_keypad_codes)) {
-            log += entry + ",";
-          }
-          if (!log.empty()) log.erase(log.size() - 1);
-          id(unauthorized_keypad_codes_sensor)->publish_state(log);
-
-  - id: save_citofono_log
-    then:
-      - lambda: |-
-          std::string log;
-          for (const auto& entry : id(citofono_log_buffer)) {
-            log += entry + ",";
-          }
-          if (!log.empty()) log.erase(log.size() - 1);
-          id(citofono_log_storage) = log;
+          id(keypad_codes_sensor)->publish_state(id(password_autorizzate_storage));
 
   - id: restore_citofono_log
     then:
@@ -1286,7 +1151,137 @@ script:
           if (!log.empty()) log.erase(log.size() - 1);
           id(citofono_log)->publish_state(log);
 
+  - id: restore_unauthorized_keypad_codes
+    then:
+      - lambda: |-
+          auto trim = [](std::string &s) {
+            while (!s.empty() && (s.front() == ' ' || s.front() == '\t')) s.erase(0, 1);
+            while (!s.empty() && (s.back() == ' ' || s.back() == '\t')) s.pop_back();
+          };
 
+          id(unauthorized_keypad_codes).clear();
+          std::string data = id(unauthorized_keypad_codes_storage);
+          size_t start = 0;
+          while (true) {
+            size_t end = data.find(',', start);
+            std::string item;
+            if (end == std::string::npos) {
+              item = data.substr(start);
+            } else {
+              item = data.substr(start, end - start);
+            }
+            trim(item);
+            if (!item.empty()) {
+              id(unauthorized_keypad_codes).push_back(item);
+            }
+            if (end == std::string::npos) break;
+            start = end + 1;
+          }
+          std::string log;
+          for (const auto& entry : id(unauthorized_keypad_codes)) {
+            log += entry + ",";
+          }
+          if (!log.empty()) log.erase(log.size() - 1);
+          id(unauthorized_keypad_codes_sensor)->publish_state(log);
+
+  - id: restore_unauthorized_tag_history
+    then:
+      - lambda: |-
+          auto trim = [](std::string &s) {
+            while (!s.empty() && (s.front() == ' ' || s.front() == '\t')) s.erase(0, 1);
+            while (!s.empty() && (s.back() == ' ' || s.back() == '\t')) s.pop_back();
+          };
+
+          id(unauthorized_tags).clear();
+          std::string data = id(badge_non_autorizzati_storage);
+          size_t start = 0;
+          while (true) {
+            size_t end = data.find(',', start);
+            std::string item;
+            if (end == std::string::npos) {
+              item = data.substr(start);
+            } else {
+              item = data.substr(start, end - start);
+            }
+            trim(item);
+            if (!item.empty()) {
+              id(unauthorized_tags).push_back(item);
+            }
+            if (end == std::string::npos) break;
+            start = end + 1;
+          }
+          std::string log;
+          for (const auto& entry : id(unauthorized_tags)) {
+            log += entry + ",";
+          }
+          if (!log.empty()) log.erase(log.size() - 1);
+          id(unauthorized_tags_sensor)->publish_state(log);
+
+  - id: restore_valid_fingerprint_history
+    then:
+      - lambda: |-
+          auto trim = [](std::string &s) {
+            while (!s.empty() && (s.front() == ' ' || s.front() == '\t')) s.erase(0, 1);
+            while (!s.empty() && (s.back() == ' ' || s.back() == '\t')) s.pop_back();
+          };
+
+          id(fingerprint_history).clear();
+          std::string data = id(impronte_autorizzate_storage);
+          size_t start = 0;
+          while (true) {
+            size_t end = data.find(',', start);
+            std::string item;
+            if (end == std::string::npos) {
+              item = data.substr(start);
+            } else {
+              item = data.substr(start, end - start);
+            }
+            trim(item);
+            if (!item.empty()) {
+              id(fingerprint_history).push_back(item);
+            }
+            if (end == std::string::npos) break;
+            start = end + 1;
+          }
+          std::string log;
+          for (const auto& entry : id(fingerprint_history)) {
+            log += entry + ",";
+          }
+          if (!log.empty()) log.erase(log.size() - 1);
+          id(fingerprint_scanned_sensor)->publish_state(log);
+
+  - id: restore_valid_tag_history
+    then:
+      - lambda: |-
+          auto trim = [](std::string &s) {
+            while (!s.empty() && (s.front() == ' ' || s.front() == '\t')) s.erase(0, 1);
+            while (!s.empty() && (s.back() == ' ' || s.back() == '\t')) s.pop_back();
+          };
+
+          id(tag_history).clear();
+          std::string data = id(badge_autorizzati_storage);
+          size_t start = 0;
+          while (true) {
+            size_t end = data.find(',', start);
+            std::string item;
+            if (end == std::string::npos) {
+              item = data.substr(start);
+            } else {
+              item = data.substr(start, end - start);
+            }
+            trim(item);
+            if (!item.empty()) {
+              id(tag_history).push_back(item);
+            }
+            if (end == std::string::npos) break;
+            start = end + 1;
+          }
+          std::string log;
+          for (const auto& entry : id(tag_history)) {
+            log += entry + ",";
+          }
+          if (!log.empty()) log.erase(log.size() - 1);
+          id(homeassistant_tag_scanned)->publish_state(log);
 
 ##################################################
   - id: save_last_records
@@ -1301,5 +1296,28 @@ script:
           id(last_unauthorized_keypad_code_sensor).publish_state(id(last_bad_password_storage));
           id(last_unauthorized_tag_code_sensor).publish_state(id(last_bad_tag_storage));
           id(user_name_sensor).publish_state(id(last_user_access_storage));
+
+
+  - id: restore_all
+    then: 
+      - script.execute: restore_unauthorized_keypad_codes
+      - script.execute: restore_authorized_keypad_codes
+      - script.execute: restore_valid_tag_history
+      - script.execute: restore_valid_fingerprint_history
+      - script.execute: restore_unauthorized_tag_history
+      - script.execute: restore_citofono_log
+      - script.execute: restore_last_records
+
+
+  - id: save_all
+    then: 
+      - script.execute: save_authorized_keypad_codes
+      - script.execute: save_valid_tag_history
+      - script.execute: save_valid_fingerprint_history
+      - script.execute: save_unauthorized_tag_history
+      - script.execute: save_unauthorized_keypad_codes
+      - script.execute: save_citofono_log
+      - script.execute: save_last_records
+
 
 
