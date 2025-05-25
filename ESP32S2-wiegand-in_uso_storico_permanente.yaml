@@ -873,6 +873,7 @@ wiegand:
           autorizzato = true;
           std::string combined = name + "-(" + timestamp + ")";
           id(user_name_sensor)->publish_state(combined);
+          id(save_last_records)->execute();
           ESP_LOGI("ACCESSO", "Impronta riconosciuta: %s", name.c_str());
           id(tag_name)->publish_state(name);
 
@@ -902,6 +903,7 @@ wiegand:
           autorizzato = true;
           std::string combined = name + "-(" + timestamp + ")";
           id(user_name_sensor)->publish_state(combined);
+          id(save_last_records)->execute();
           ESP_LOGI("ACCESSO", "Badge riconosciuto: %s", name.c_str());
           id(tag_name)->publish_state(name);
 
