@@ -26,7 +26,7 @@ preferences:
 ################################################################
  
 logger:
-  level: debug
+  level: debug  #INFO
   logs:
     text_sensor: error
     number: ERROR
@@ -905,18 +905,27 @@ switch:
       - delay: 500ms
       - switch.turn_off: clear_history_button
 
+
+ ##########################################################################################################################
   - platform: template
     id: resetta_tamper
     name: "Reset Tamper"
     icon: mdi:restart
-    web_server:
-      sorting_weight: 12
+    restore_mode: ALWAYS_OFF
     turn_on_action:
+      - switch.template.publish:
+          id: resetta_tamper
+          state: ON
+      - delay: 100ms  # breve pausa per permettere alla UI di ricevere l'ON
       - lambda: |-
           id(tamper_state) = false;
           id(tamper_output).publish_state(false);
       - delay: 500ms
-      - switch.turn_off: resetta_tamper
+      - switch.template.publish:
+          id: resetta_tamper
+          state: OFF
+##########################################################################################################################
+
 
 key_collector:
   - id: pincode_reader
