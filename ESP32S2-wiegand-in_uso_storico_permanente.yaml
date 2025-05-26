@@ -26,7 +26,7 @@ preferences:
 ################################################################
  
 logger:
-  level: INFO
+  level: debug
   logs:
     text_sensor: error
     number: ERROR
@@ -769,9 +769,9 @@ key_collector:
             //////////////////////////////////////////////////////////////////
             // Mappa dei codici validi e relativa azione (relay)
             std::map<std::string, std::pair<std::string, int>> codici_validi = {
-              {"111111111", {"Pwd GLOBALE", 12}},
-              {"222222222", {"Pwd CANCELLO", 1}},
-              {"333333333", {"Pwd PORTONE", 2}}
+              {"111111111", {"Pwd.GLOBALE",    12}},
+              {"222222222", {"Pwd.PORTONE",    1}},
+              {"333333333", {"Pwd.CANCELLO",     2}}
             };
             //////////////////////////////////////////////////////////////////
 
@@ -1014,7 +1014,7 @@ script:
 
  
 #########################################################
- 
+
   - id: save_authorized_keypad_codes
     then:
       - lambda: |-
@@ -1025,8 +1025,10 @@ script:
             id(password_autorizzate_storage) = voice;
           }
 
-          if (id(password_autorizzate_storage).length() > 254) {
-            id(password_autorizzate_storage).erase(0, id(password_autorizzate_storage).length() - 254);
+          while (id(password_autorizzate_storage).length() > 254) {
+            size_t pos = id(password_autorizzate_storage).find(',');
+            if (pos == std::string::npos) break;
+            id(password_autorizzate_storage).erase(0, pos + 1);
           }
 
           id(keypad_codes_sensor)->publish_state(id(password_autorizzate_storage));
@@ -1038,10 +1040,12 @@ script:
           for (const auto& entry : id(citofono_log_buffer)) {
             log += entry + ",";
           }
-          if (!log.empty()) log.erase(log.size() - 1);
+          if (!log.empty()) log.pop_back();
 
-          if (log.length() > 254) {
-            log.erase(0, log.length() - 254);
+          while (log.length() > 254) {
+            size_t pos = log.find(',');
+            if (pos == std::string::npos) break;
+            log.erase(0, pos + 1);
           }
 
           id(citofono_log_storage) = log;
@@ -1056,8 +1060,10 @@ script:
             id(unauthorized_keypad_codes_storage) = voice;
           }
 
-          if (id(unauthorized_keypad_codes_storage).length() > 254) {
-            id(unauthorized_keypad_codes_storage).erase(0, id(unauthorized_keypad_codes_storage).length() - 254);
+          while (id(unauthorized_keypad_codes_storage).length() > 254) {
+            size_t pos = id(unauthorized_keypad_codes_storage).find(',');
+            if (pos == std::string::npos) break;
+            id(unauthorized_keypad_codes_storage).erase(0, pos + 1);
           }
 
           id(unauthorized_keypad_codes_sensor)->publish_state(id(unauthorized_keypad_codes_storage));
@@ -1069,10 +1075,12 @@ script:
           for (const auto& entry : id(unauthorized_tags)) {
             buffer += entry + ",";
           }
-          if (!buffer.empty()) buffer.erase(buffer.size() - 1);
+          if (!buffer.empty()) buffer.pop_back();
 
-          if (buffer.length() > 254) {
-            buffer.erase(0, buffer.length() - 254);
+          while (buffer.length() > 254) {
+            size_t pos = buffer.find(',');
+            if (pos == std::string::npos) break;
+            buffer.erase(0, pos + 1);
           }
 
           id(badge_non_autorizzati_storage) = buffer;
@@ -1084,10 +1092,12 @@ script:
           for (const auto& entry : id(fingerprint_history)) {
             buffer += entry + ",";
           }
-          if (!buffer.empty()) buffer.erase(buffer.size() - 1);
+          if (!buffer.empty()) buffer.pop_back();
 
-          if (buffer.length() > 254) {
-            buffer.erase(0, buffer.length() - 254);
+          while (buffer.length() > 254) {
+            size_t pos = buffer.find(',');
+            if (pos == std::string::npos) break;
+            buffer.erase(0, pos + 1);
           }
 
           id(impronte_autorizzate_storage) = buffer;
@@ -1099,14 +1109,17 @@ script:
           for (const auto& entry : id(tag_history)) {
             buffer += entry + ",";
           }
-          if (!buffer.empty()) buffer.erase(buffer.size() - 1);
+          if (!buffer.empty()) buffer.pop_back();
 
-          if (buffer.length() > 254) {
-            buffer.erase(0, buffer.length() - 254);
+          while (buffer.length() > 254) {
+            size_t pos = buffer.find(',');
+            if (pos == std::string::npos) break;
+            buffer.erase(0, pos + 1);
           }
 
           id(badge_autorizzati_storage) = buffer;
 
+#########################################################
   - id: restore_authorized_keypad_codes
     then:
       - lambda: |-
@@ -1318,6 +1331,5 @@ script:
       - script.execute: save_unauthorized_keypad_codes
       - script.execute: save_citofono_log
       - script.execute: save_last_records
-
 
 
