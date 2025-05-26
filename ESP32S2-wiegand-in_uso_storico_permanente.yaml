@@ -97,8 +97,10 @@ text_sensor:
       name: "wifi connesso a:"
       web_server:
         sorting_weight: 70
-      
 
+
+#############################
+ 
   - platform: template
     name: "Badge Autorizzati"
     id: homeassistant_tag_scanned
@@ -107,6 +109,26 @@ text_sensor:
       sorting_weight: 20
     lambda: |-
       std::string raw = id(badge_autorizzati_storage);
+      size_t i = 0;
+      while ((i = raw.find("(", i)) != std::string::npos) {
+        if (i + 11 < raw.size() && raw[i+11] == ')') {
+          std::string code = raw.substr(i+1, 10);
+          if (std::all_of(code.begin(), code.end(), ::isdigit)) {
+            std::string gg = code.substr(0,2);
+            std::string mm = code.substr(2,2);
+            std::string hh = code.substr(4,2);
+            std::string mi = code.substr(6,2);
+            std::string ss = code.substr(8,2);
+            std::string formatted = gg + "." + mm + "-" + hh + ":" + mi + ":" + ss;
+            raw.replace(i+1, 10, formatted);
+            i += formatted.length();
+          } else {
+            i++;
+          }
+        } else {
+          i++;
+        }
+      }
       size_t pos = 0;
       while ((pos = raw.find(",", pos)) != std::string::npos) {
         raw.replace(pos, 1, ",\n");
@@ -123,6 +145,26 @@ text_sensor:
       sorting_weight: 21
     lambda: |-
       std::string raw = id(password_autorizzate_storage);
+      size_t i = 0;
+      while ((i = raw.find("(", i)) != std::string::npos) {
+        if (i + 11 < raw.size() && raw[i+11] == ')') {
+          std::string code = raw.substr(i+1, 10);
+          if (std::all_of(code.begin(), code.end(), ::isdigit)) {
+            std::string gg = code.substr(0,2);
+            std::string mm = code.substr(2,2);
+            std::string hh = code.substr(4,2);
+            std::string mi = code.substr(6,2);
+            std::string ss = code.substr(8,2);
+            std::string formatted = gg + "." + mm + "-" + hh + ":" + mi + ":" + ss;
+            raw.replace(i+1, 10, formatted);
+            i += formatted.length();
+          } else {
+            i++;
+          }
+        } else {
+          i++;
+        }
+      }
       size_t pos = 0;
       while ((pos = raw.find(",", pos)) != std::string::npos) {
         raw.replace(pos, 1, ",\n");
@@ -139,6 +181,26 @@ text_sensor:
       sorting_weight: 22
     lambda: |-
       std::string raw = id(impronte_autorizzate_storage);
+      size_t i = 0;
+      while ((i = raw.find("(", i)) != std::string::npos) {
+        if (i + 11 < raw.size() && raw[i+11] == ')') {
+          std::string code = raw.substr(i+1, 10);
+          if (std::all_of(code.begin(), code.end(), ::isdigit)) {
+            std::string gg = code.substr(0,2);
+            std::string mm = code.substr(2,2);
+            std::string hh = code.substr(4,2);
+            std::string mi = code.substr(6,2);
+            std::string ss = code.substr(8,2);
+            std::string formatted = gg + "." + mm + "-" + hh + ":" + mi + ":" + ss;
+            raw.replace(i+1, 10, formatted);
+            i += formatted.length();
+          } else {
+            i++;
+          }
+        } else {
+          i++;
+        }
+      }
       size_t pos = 0;
       while ((pos = raw.find(",", pos)) != std::string::npos) {
         raw.replace(pos, 1, ",\n");
@@ -155,6 +217,26 @@ text_sensor:
       sorting_weight: 23
     lambda: |-
       std::string raw = id(unauthorized_keypad_codes_storage);
+      size_t i = 0;
+      while ((i = raw.find("(", i)) != std::string::npos) {
+        if (i + 11 < raw.size() && raw[i+11] == ')') {
+          std::string code = raw.substr(i+1, 10);
+          if (std::all_of(code.begin(), code.end(), ::isdigit)) {
+            std::string gg = code.substr(0,2);
+            std::string mm = code.substr(2,2);
+            std::string hh = code.substr(4,2);
+            std::string mi = code.substr(6,2);
+            std::string ss = code.substr(8,2);
+            std::string formatted = gg + "." + mm + "-" + hh + ":" + mi + ":" + ss;
+            raw.replace(i+1, 10, formatted);
+            i += formatted.length();
+          } else {
+            i++;
+          }
+        } else {
+          i++;
+        }
+      }
       size_t pos = 0;
       while ((pos = raw.find(",", pos)) != std::string::npos) {
         raw.replace(pos, 1, ",\n");
@@ -171,6 +253,26 @@ text_sensor:
       sorting_weight: 24
     lambda: |-
       std::string raw = id(badge_non_autorizzati_storage);
+      size_t i = 0;
+      while ((i = raw.find("(", i)) != std::string::npos) {
+        if (i + 11 < raw.size() && raw[i+11] == ')') {
+          std::string code = raw.substr(i+1, 10);
+          if (std::all_of(code.begin(), code.end(), ::isdigit)) {
+            std::string gg = code.substr(0,2);
+            std::string mm = code.substr(2,2);
+            std::string hh = code.substr(4,2);
+            std::string mi = code.substr(6,2);
+            std::string ss = code.substr(8,2);
+            std::string formatted = gg + "." + mm + "-" + hh + ":" + mi + ":" + ss;
+            raw.replace(i+1, 10, formatted);
+            i += formatted.length();
+          } else {
+            i++;
+          }
+        } else {
+          i++;
+        }
+      }
       size_t pos = 0;
       while ((pos = raw.find(",", pos)) != std::string::npos) {
         raw.replace(pos, 1, ",\n");
@@ -187,6 +289,26 @@ text_sensor:
       sorting_weight: 54
     lambda: |-
       std::string raw = id(citofono_log_storage);
+      size_t i = 0;
+      while ((i = raw.find("(", i)) != std::string::npos) {
+        if (i + 11 < raw.size() && raw[i+11] == ')') {
+          std::string code = raw.substr(i+1, 10);
+          if (std::all_of(code.begin(), code.end(), ::isdigit)) {
+            std::string gg = code.substr(0,2);
+            std::string mm = code.substr(2,2);
+            std::string hh = code.substr(4,2);
+            std::string mi = code.substr(6,2);
+            std::string ss = code.substr(8,2);
+            std::string formatted = gg + "." + mm + "-" + hh + ":" + mi + ":" + ss;
+            raw.replace(i+1, 10, formatted);
+            i += formatted.length();
+          } else {
+            i++;
+          }
+        } else {
+          i++;
+        }
+      }
       size_t pos = 0;
       while ((pos = raw.find(",", pos)) != std::string::npos) {
         raw.replace(pos, 1, ",\n");
@@ -195,7 +317,9 @@ text_sensor:
       return raw;
     update_interval: 5s
 
-    
+
+#############################
+ 
   - platform: template
     name: "Ultima Password non valida"
     id: last_unauthorized_keypad_code_sensor
@@ -203,8 +327,23 @@ text_sensor:
     web_server:
       sorting_weight: 50
     lambda: |-
-      return id(last_bad_password_storage);
-    update_interval: never
+      std::string raw = id(last_bad_password_storage);
+      size_t start = raw.find("(");
+      size_t end = raw.find(")", start);
+      if (start != std::string::npos && end != std::string::npos && end - start == 11) {
+        std::string code = raw.substr(start + 1, 10);
+        if (std::all_of(code.begin(), code.end(), ::isdigit)) {
+          std::string gg = code.substr(0, 2);
+          std::string mm = code.substr(2, 2);
+          std::string hh = code.substr(4, 2);
+          std::string mi = code.substr(6, 2);
+          std::string ss = code.substr(8, 2);
+          std::string formatted = gg + "." + mm + "-" + hh + ":" + mi + ":" + ss;
+          raw.replace(start + 1, 10, formatted);
+        }
+      }
+      return raw;
+    update_interval: 5s
 
   - platform: template
     name: "Ultimo TAG non valido"
@@ -213,8 +352,23 @@ text_sensor:
     web_server:
       sorting_weight: 51
     lambda: |-
-      return id(last_bad_tag_storage);
-    update_interval: never
+      std::string raw = id(last_bad_tag_storage);
+      size_t start = raw.find("(");
+      size_t end = raw.find(")", start);
+      if (start != std::string::npos && end != std::string::npos && end - start == 11) {
+        std::string code = raw.substr(start + 1, 10);
+        if (std::all_of(code.begin(), code.end(), ::isdigit)) {
+          std::string gg = code.substr(0, 2);
+          std::string mm = code.substr(2, 2);
+          std::string hh = code.substr(4, 2);
+          std::string mi = code.substr(6, 2);
+          std::string ss = code.substr(8, 2);
+          std::string formatted = gg + "." + mm + "-" + hh + ":" + mi + ":" + ss;
+          raw.replace(start + 1, 10, formatted);
+        }
+      }
+      return raw;
+    update_interval: 5s
 
   - platform: template
     name: "Ultimo accesso"
@@ -223,8 +377,25 @@ text_sensor:
     web_server:
       sorting_weight: 52
     lambda: |-
-      return id(last_user_access_storage);
-    update_interval: never
+      std::string raw = id(last_user_access_storage);
+      size_t start = raw.find("(");
+      size_t end = raw.find(")", start);
+      if (start != std::string::npos && end != std::string::npos && end - start == 11) {
+        std::string code = raw.substr(start + 1, 10);
+        if (std::all_of(code.begin(), code.end(), ::isdigit)) {
+          std::string gg = code.substr(0, 2);
+          std::string mm = code.substr(2, 2);
+          std::string hh = code.substr(4, 2);
+          std::string mi = code.substr(6, 2);
+          std::string ss = code.substr(8, 2);
+          std::string formatted = gg + "." + mm + "-" + hh + ":" + mi + ":" + ss;
+          raw.replace(start + 1, 10, formatted);
+        }
+      }
+      return raw;
+    update_interval: 5s
+    
+#############################
 
   - platform: template
     id: user_name_sensor2
