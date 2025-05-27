@@ -4,34 +4,39 @@ triggers:
   - entity_id:
       - sensor.apriporte_wiegand_ultimo_accesso
       - sensor.apriporte_wiegand_ultima_password_non_valida
-      - sensor.apriporte_wiegand_ultimo_tag_o_impronta_non_valido
+      - sensor.apriporte_wiegand_ultimo_tag_non_valido
     trigger: state
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1.5
 conditions:
   - condition: template
     value_template: |-
       {{ trigger.to_state.state | string | trim != '' and
-         trigger.to_state.state | string != 'unknown' and
-         trigger.to_state.state | string != 'unavailable' }}
+         trigger.to_state.state not in ['unknown', 'unavailable'] }}
+  - condition: state
+    entity_id: binary_sensor.apriporte_wiegand_esp32_stabilizzato
+    state: "on"
 actions:
   - data:
       title: |-
-        {% set entity = trigger.entity_id %} {% if 'ultimo_accesso' in entity %}
+        {% set entity = trigger.entity_id %} 
+        {% if 'ultimo_accesso' in entity %}
           ✅ Accesso autorizzato
         {% else %}
           🔐 Accesso negato!
         {% endif %}
       message: >-
         {% set stato = trigger.to_state.state | string | replace('_', '-') %} {%
-        if 'ultimo_accesso' in trigger.entity_id %}
+        if 'apriporte_wiegand_ultimo_accesso' in trigger.entity_id %}
           👤 Utente autorizzato: {{ stato }}
-        {% elif 'ultima_password_non_valida' in trigger.entity_id %}
+        {% elif 'apriporte_wiegand_ultima_password_non_valida' in trigger.entity_id %}
           ❌ Password non valida: {{ stato }}
-        {% elif 'ultimo_tag_o_impronta_non_valido' in trigger.entity_id %}
+        {% elif 'apriporte_wiegand_ultimo_tag_non_valido' in trigger.entity_id %}
           ❌ Badge o impronta non validi: {{ stato }}
         {% else %}
           ⚠️ Tentativo di accesso non autorizzato: {{ stato }}
         {% endif %}
     action: notify.telegram
 mode: single
-
-
