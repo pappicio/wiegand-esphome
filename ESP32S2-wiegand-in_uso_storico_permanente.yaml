@@ -135,7 +135,7 @@ text_sensor:
         pos += 2;
       }
       return raw;
-    update_interval: 5s
+    update_interval: 2s
 
   - platform: template
     name: "Password autorizzate"
@@ -171,7 +171,7 @@ text_sensor:
         pos += 2;
       }
       return raw;
-    update_interval: 5s
+    update_interval: 2s
 
   - platform: template
     name: "Impronte autorizzate"
@@ -207,7 +207,7 @@ text_sensor:
         pos += 2;
       }
       return raw;
-    update_interval: 5s
+    update_interval: 2s
 
   - platform: template
     name: "Password Non Autorizzate"
@@ -243,7 +243,7 @@ text_sensor:
         pos += 2;
       }
       return raw;
-    update_interval: 5s
+    update_interval: 2s
 
   - platform: template
     name: "Badge/Finger non autorizzati"
@@ -279,7 +279,7 @@ text_sensor:
         pos += 2;
       }
       return raw;
-    update_interval: 5s
+    update_interval: 2s
 
   - platform: template
     name: "Buzzer Citofono"
@@ -315,7 +315,7 @@ text_sensor:
         pos += 2;
       }
       return raw;
-    update_interval: 5s
+    update_interval: 2s
 
 
 #############################
@@ -343,7 +343,7 @@ text_sensor:
         }
       }
       return raw;
-    update_interval: 5s
+    update_interval: 2s
 
   - platform: template
     name: "Ultimo TAG non valido"
@@ -368,7 +368,7 @@ text_sensor:
         }
       }
       return raw;
-    update_interval: 5s
+    update_interval: 2s
 
   - platform: template
     name: "Ultimo accesso"
@@ -393,7 +393,7 @@ text_sensor:
         }
       }
       return raw;
-    update_interval: 5s
+    update_interval: 2s
     
 #############################
 
@@ -879,31 +879,38 @@ switch:
           id(fingerprint_history).clear();
           id(keypad_code_history).clear();
 
-          // Pulisco le variabili di appoggio/storage
+          // Pulisco le variabili di appoggio/storage temporanee
           id(citofono_log_string) = "";
           id(citofono_log_buffer).clear();
 
-          // Pulisco le variabili storage persistenti
-          id(badge_non_autorizzati_storage) = "";
-          id(unauthorized_keypad_codes_storage) = "";
+          // Pulizia storage persistenti (globals)
           id(badge_autorizzati_storage) = "";
-          id(impronte_autorizzate_storage) = "";
           id(password_autorizzate_storage) = "";
+          id(impronte_autorizzate_storage) = "";
+          id(unauthorized_keypad_codes_storage) = "";
+          id(badge_non_autorizzati_storage) = "";
+          id(citofono_log_storage) = ""; // << AGGIUNTO
 
           id(last_bad_password_storage) = "";
           id(last_bad_tag_storage) = "";
           id(last_user_access_storage) = "";
 
-          // Pulisco gli stati sensori e ripristino con storage (che ora sono vuoti)
+          // Pubblica stato vuoto su tutti i text_sensor coinvolti
           id(homeassistant_tag_scanned).publish_state("");
+          id(keypad_codes_sensor).publish_state("");             // << AGGIUNTO
+          id(fingerprint_scanned_sensor).publish_state("");      // << AGGIUNTO
+          id(unauthorized_keypad_codes_sensor).publish_state(""); // << AGGIUNTO
+          id(unauthorized_tags_sensor).publish_state("");        // << AGGIUNTO
+          id(citofono_log).publish_state("");
+
           id(last_unauthorized_keypad_code_sensor).publish_state(id(last_bad_password_storage));
           id(last_unauthorized_tag_code_sensor).publish_state(id(last_bad_tag_storage));
           id(user_name_sensor).publish_state(id(last_user_access_storage));
-          id(citofono_log).publish_state("");
 
       - script.execute: save_all
       - delay: 500ms
       - switch.turn_off: clear_history_button
+
 
 
  ##########################################################################################################################
