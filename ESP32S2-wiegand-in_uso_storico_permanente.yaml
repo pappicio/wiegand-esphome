@@ -444,7 +444,7 @@ text_sensor:
                 // Ottieni il tempo sincronizzato con SNTP
                 auto now = id(sntp_time).now();
                 char timestamp[20];
-                snprintf(timestamp, sizeof(timestamp), "%02d%02d%02d%02d%02d",
+                snprintf(timestamp, sizeof(timestamp), "%02d.%02d-%02d:%02d:%02d",
                          now.day_of_month, now.month,
                          now.hour, now.minute, now.second);
 
