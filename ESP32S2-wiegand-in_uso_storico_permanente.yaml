@@ -1,6 +1,5 @@
 
 
-
 esphome:
   name: apriporte-wiegand
   friendly_name: apriporte wiegand
@@ -9,9 +8,6 @@ esphome:
     priority: 600
     then:
       - script.execute: restore_all
-      - delay: 30s
-      - lambda: |-
-          id(esp32_stabilizzato_flag) = true;
 ################################################################
 esp32:
   board: lolin_s2_mini
@@ -65,7 +61,7 @@ wifi:
 
   ap:
     ssid: "apriporte-wiegand"
-    password: "1234567890"
+    password: "3498692081"
 ##############################################################
 
 captive_portal:
@@ -73,7 +69,7 @@ captive_portal:
 #########################################################################
 
 web_server:
-  ota: false  # Puoi anche disabilitare l'OTA se non vuoi usarlo dalla pagina web di ESPHome
+  #ota: false  # Puoi anche disabilitare l'OTA se non vuoi usarlo dalla pagina web di ESPHome
   version: 3
   auth:
     username: !secret web_server_username
@@ -590,10 +586,10 @@ binary_sensor:
 
 
   - platform: template
-    name: "ESP32 Stabilizzato"
-    id: esp32_stabilizzato
+    name: "Ricezione dati..."
+    id: ricezione_dati
     lambda: |-
-      return id(esp32_stabilizzato_flag);
+      return id(ricezione_dati_flag);
     icon: mdi:check-network-outline
     web_server:
       sorting_weight: 4
@@ -607,7 +603,7 @@ binary_sensor:
 
 
 globals:
-  - id: esp32_stabilizzato_flag
+  - id: ricezione_dati_flag
     type: bool
     restore_value: false
     initial_value: 'false'
@@ -946,6 +942,10 @@ key_collector:
     timeout: 5s
     on_result:
       then:
+        - globals.set:
+            id: ricezione_dati_flag
+            value: 'true'
+        - delay: 100ms
         - lambda: |-
             std::string code = x;
             id(last_formatted_code) = code;
@@ -956,9 +956,9 @@ key_collector:
             //////////////////////////////////////////////////////////////////
             // Mappa dei codici validi e relativa azione (relay)
             std::map<std::string, std::pair<std::string, int>> codici_validi = {
-              {"111111111", {"Pwd.GLOBALE",    12}},
-              {"222222222", {"Pwd.PORTONE",    1}},
-              {"333333333", {"Pwd.CANCELLO",     2}}
+              {"19751983", {"Pwd.GLOBALE",    12}},
+              {"19758383", {"Pwd.PORTONE",    1}},
+              {"19757575", {"Pwd.CANCELLO",     2}}
             };
             //////////////////////////////////////////////////////////////////
 
@@ -1012,6 +1012,7 @@ key_collector:
             } else {
               ESP_LOGI("KEYPAD", "Tastiera DISABILITATA");
             }
+        - script.execute: stop_ricezione_dati
         - homeassistant.tag_scanned: !lambda 'return id(user_name_sensor2).state.c_str();'
 
 ######################################################
@@ -1040,6 +1041,10 @@ wiegand:
   ###lockout_time: 5000ms
   ######################################################
   on_tag:
+    - globals.set:
+        id: ricezione_dati_flag
+        value: 'true'
+    - delay: 100ms
     - lambda: |-
         uint64_t tag = std::stoull(x.c_str());
         std::string name = "Unknown";
@@ -1049,24 +1054,24 @@ wiegand:
 
         // === Mappe impronte ===
         std::map<uint64_t, std::pair<std::string, int>> impronte = {
-          {121212211, {"Imp 11",   12}},
-          {212121212, {"Imp 12",   12}},
-          {232323232, {"Imp 13",   12}},
-          {323232323, {"Imp 14",   12}},
-          {454545454, {"Imp 21",   12}},
-          {545454545, {"Imp 22",   12}},
-          {656565656, {"Imp 23",   12}},
-          {565656565, {"Imp 24",   12}},
-          {676767676, {"Imp 31",   12}},
-          {767676767, {"Imp 32",   12}}
+          {286327041, {"Imp.Giuseppe1",   12}},
+          {286326785, {"Imp.Giuseppe2",   12}},
+          {286327553, {"Imp.Giuseppe3",   12}},
+          {286327297, {"Imp.Giuseppe4",   12}},
+          {286327809, {"Imp.Desy1",       12}},
+          {286328321, {"Imp.Desy2",       12}},
+          {286328065, {"Imp.Desy3",       12}},
+          {286328577, {"Imp.Desy4",       12}},
+          {286329345, {"Imp.Maria1",      12}},
+          {286329601, {"Imp.Maria2",      12}}
         };
 
         // === Mappe badge ===
         std::map<uint64_t, std::pair<std::string, int>> badge = {
-          {509791345,  {"Badge 1", 12}},
-          {854418574,  {"Badge 2", 12}},
-          {851971486,  {"Badge 3", 12}},
-          {2910431538, {"Badge 1", 12}}
+          {509791345,  {"Badge.Maria",    12}},
+          {854418574,  {"Badge.Desiree",  12}},
+          {851971486,  {"Badge.Giuseppe", 12}},
+          {2910431538, {"Badge.ATe",      12}}
         };
 
         // Verifica impronta
@@ -1171,6 +1176,7 @@ wiegand:
           ESP_LOGI("TAG", "Tastiera DISABILITATA");
         }
 
+    - script.execute: stop_ricezione_dati
     - homeassistant.tag_scanned: !lambda 'return id(tag_name).state.c_str();'
 
 
@@ -1519,4 +1525,10 @@ script:
       - script.execute: save_citofono_log
       - script.execute: save_last_records
 
-
+  - id: stop_ricezione_dati
+    then:
+      - delay: 5s
+      - lambda: |-
+          id(ricezione_dati_flag) = false;
+	  
+	  
