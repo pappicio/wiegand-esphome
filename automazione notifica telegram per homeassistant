@@ -9,14 +9,14 @@ triggers:
     for:
       hours: 0
       minutes: 0
-      seconds: 2.5
+      seconds: 2
 conditions:
   - condition: template
     value_template: |-
       {{ trigger.to_state.state | string | trim != '' and
          trigger.to_state.state not in ['unknown', 'unavailable'] }}
   - condition: state
-    entity_id: binary_sensor.apriporte_wiegand_esp32_stabilizzato
+    entity_id: binary_sensor.apriporte_wiegand_ricezione_dati
     state: "on"
 actions:
   - data:
@@ -31,9 +31,11 @@ actions:
         {% set stato = trigger.to_state.state | string | replace('_', '-') %} {%
         if 'apriporte_wiegand_ultimo_accesso' in trigger.entity_id %}
           👤 Utente autorizzato: {{ stato }}
-        {% elif 'apriporte_wiegand_ultima_password_non_valida' in trigger.entity_id %}
+        {% elif 'apriporte_wiegand_ultima_password_non_valida' in
+        trigger.entity_id %}
           ❌ Password non valida: {{ stato }}
-        {% elif 'apriporte_wiegand_ultimo_tag_non_valido' in trigger.entity_id %}
+        {% elif 'apriporte_wiegand_ultimo_tag_non_valido' in trigger.entity_id
+        %}
           ❌ Badge o impronta non validi: {{ stato }}
         {% else %}
           ⚠️ Tentativo di accesso non autorizzato: {{ stato }}
