@@ -9,7 +9,7 @@ triggers:
     for:
       hours: 0
       minutes: 0
-      seconds: 2
+      seconds: 2.5
 conditions:
   - condition: template
     value_template: |-
