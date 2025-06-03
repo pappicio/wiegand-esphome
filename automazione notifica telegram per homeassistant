@@ -9,7 +9,7 @@ triggers:
     for:
       hours: 0
       minutes: 0
-      seconds: 2.5
+      seconds: 1.5
 conditions:
   - condition: template
     value_template: |-
@@ -22,7 +22,7 @@ actions:
   - data:
       title: |-
         {% set entity = trigger.entity_id %} 
-        {% if 'ultimo_accesso' in entity %}
+        {% if 'apriporte_wiegand_ultimo_accesso' in entity %}
           ✅ Accesso autorizzato
         {% else %}
           🔐 Accesso negato!
@@ -41,4 +41,4 @@ actions:
           ⚠️ Tentativo di accesso non autorizzato: {{ stato }}
         {% endif %}
     action: notify.telegram
-mode: single
+mode: parallel
