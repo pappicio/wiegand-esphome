@@ -45,6 +45,8 @@ improv_serial:
 
 wifi:
   networks:
+    - ssid: peppe6
+    - password: !secret wifi_password6
     - ssid: peppe4
     - password: !secret wifi_password4
     - ssid: peppe2
@@ -91,6 +93,8 @@ text_sensor:
   - platform: wifi_info
     ssid:
       name: "wifi connesso a:"
+      icon: "mdi:wifi"
+
       web_server:
         sorting_weight: 70
 
@@ -131,7 +135,7 @@ text_sensor:
         pos += 2;
       }
       return raw;
-    update_interval: 2s
+    update_interval: 1s
 
   - platform: template
     name: "Password autorizzate"
@@ -167,7 +171,7 @@ text_sensor:
         pos += 2;
       }
       return raw;
-    update_interval: 2s
+    update_interval: 1s
 
   - platform: template
     name: "Impronte autorizzate"
@@ -203,7 +207,7 @@ text_sensor:
         pos += 2;
       }
       return raw;
-    update_interval: 2s
+    update_interval: 1s
 
   - platform: template
     name: "Password Non Autorizzate"
@@ -239,7 +243,7 @@ text_sensor:
         pos += 2;
       }
       return raw;
-    update_interval: 2s
+    update_interval: 1s
 
   - platform: template
     name: "Badge/Finger non autorizzati"
@@ -275,7 +279,7 @@ text_sensor:
         pos += 2;
       }
       return raw;
-    update_interval: 2s
+    update_interval: 1s
 
   - platform: template
     name: "Buzzer Citofono"
@@ -311,7 +315,7 @@ text_sensor:
         pos += 2;
       }
       return raw;
-    update_interval: 2s
+    update_interval: 1s
 
 
 #############################
@@ -339,7 +343,7 @@ text_sensor:
         }
       }
       return raw;
-    update_interval: 2s
+    update_interval: 1s
 
   - platform: template
     name: "Ultimo TAG non valido"
@@ -364,7 +368,7 @@ text_sensor:
         }
       }
       return raw;
-    update_interval: 2s
+    update_interval: 1s
 
   - platform: template
     name: "Ultimo accesso"
@@ -389,7 +393,7 @@ text_sensor:
         }
       }
       return raw;
-    update_interval: 2s
+    update_interval: 1s
     
 #############################
 
@@ -487,6 +491,7 @@ time:
 sensor:
   - platform: wifi_signal
     name: "Segnale WiFi"
+    icon: "mdi:signal"
     web_server:
       sorting_weight: 80
     update_interval: 10s
@@ -596,6 +601,8 @@ binary_sensor:
 ######################################################################
   - platform: status
     name: "Stato ESP"
+    icon: "mdi:chip"
+
 ######################################################################
 
 
